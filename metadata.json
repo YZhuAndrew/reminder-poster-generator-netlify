@@ -1,0 +1,5 @@
+{
+  "name": "警示教育提醒海报生成器",
+  "description": "An intelligent warning education poster generator that turns safety text into visual, interactive posters using Gemini models.",
+  "requestFramePermissions": []
+}
