@@ -1,5 +1,5 @@
-import React from 'react';
-import { PosterStyle, PosterContent } from '../types';
+import React, { useState } from 'react';
+import { PosterStyle, PosterContent, HistoryItem } from '../types';
 import { SimpleEditor } from './SimpleEditor';
 
 interface ControlsProps {
@@ -17,6 +17,11 @@ interface ControlsProps {
   onRegenerateImage: () => void;
   isGeneratingImage: boolean;
   onBackToEdit: () => void;
+
+  // History
+  history: HistoryItem[];
+  onLoadHistory: (item: HistoryItem) => void;
+  onDeleteHistory: (id: string) => void;
 }
 
 export const Controls: React.FC<ControlsProps> = ({
@@ -31,66 +36,60 @@ export const Controls: React.FC<ControlsProps> = ({
   content,
   onRegenerateImage,
   isGeneratingImage,
-  onBackToEdit
+  onBackToEdit,
+  history,
+  onLoadHistory,
+  onDeleteHistory
 }) => {
+  const [activeTab, setActiveTab] = useState<'editor' | 'history'>('editor');
+
   const handleChange = (key: keyof PosterStyle, value: any) => {
     setStyleConfig(prev => ({ ...prev, [key]: value }));
   };
 
-  if (!content) {
-    return (
-      <div className="bg-[#111e36] p-6 rounded-xl shadow-lg border border-blue-900/50">
-        <h2 className="text-xl font-bold mb-4 text-white flex items-center gap-2">
-            <div className="p-1 bg-red-600 rounded shadow-lg shadow-red-900/50">
-                <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5 text-white" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 20H5a2 2 0 01-2-2V6a2 2 0 012-2h10a2 2 0 012 2v1m2 13a2 2 0 01-2-2V7m2 13a2 2 0 002-2V9a2 2 0 00-2-2h-2m-4-3H9M7 16h6M7 8h6v4H7V8z" /></svg>
+  // Render History Tab Content
+  const renderHistory = () => (
+    <div className="space-y-4">
+        <h3 className="text-sm font-bold text-blue-200 uppercase tracking-wider mb-4">历史记录 ({history.length})</h3>
+        {history.length === 0 ? (
+            <div className="text-center py-10 text-blue-500/50 text-sm">
+                暂无历史记录<br/>生成海报后会自动保存
             </div>
-            <span className="font-serif-sc tracking-wide">
-                红头文件/海报生成
-            </span>
-        </h2>
-        <p className="text-blue-200 mb-4 text-sm opacity-80 leading-relaxed">
-          请输入标题和正文内容。使用编辑器自定义正文格式。<br/>
-          <span className="text-xs text-blue-400">支持：节日纪律、安全生产、廉洁提醒等场景。</span>
-        </p>
-        
-        <div className="space-y-4 mb-4">
-            <div>
-                <label className="block text-xs font-semibold text-blue-300 mb-1 uppercase tracking-wider">标题 (Title)</label>
-                <input
-                    value={inputTitle}
-                    onChange={(e) => setInputTitle(e.target.value)}
-                    placeholder="例如：节日纪律提醒"
-                    className="w-full bg-[#0a1628] border border-blue-800 rounded-lg p-3 text-white focus:ring-2 focus:ring-red-600 focus:border-transparent focus:outline-none font-serif-sc font-bold text-lg placeholder-blue-700/50"
-                />
+        ) : (
+            <div className="space-y-3">
+                {history.map((item) => (
+                    <div key={item.id} className="bg-[#0a1628] border border-blue-800/50 rounded-lg p-3 hover:border-blue-600 transition-colors group">
+                        <div className="flex justify-between items-start mb-2">
+                            <h4 className="font-bold text-white text-sm line-clamp-1 font-serif-sc mr-2">{item.title || "无标题"}</h4>
+                            <button 
+                                onClick={(e) => { e.stopPropagation(); onDeleteHistory(item.id); }}
+                                className="text-blue-500 hover:text-red-400 transition-colors p-1"
+                                title="删除"
+                            >
+                                <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
+                                </svg>
+                            </button>
+                        </div>
+                        <p className="text-xs text-blue-400 mb-3">
+                            {new Date(item.timestamp).toLocaleString()}
+                        </p>
+                        <button 
+                            onClick={() => { onLoadHistory(item); setActiveTab('editor'); }}
+                            className="w-full py-1.5 bg-blue-900/30 hover:bg-blue-800 text-blue-200 text-xs rounded border border-blue-800/50 transition-colors"
+                        >
+                            加载此海报
+                        </button>
+                    </div>
+                ))}
             </div>
-            <div>
-                <label className="block text-xs font-semibold text-blue-300 mb-1 uppercase tracking-wider">正文 (Content)</label>
-                <SimpleEditor
-                  value={inputBody}
-                  onChange={(html) => setInputBody(html)}
-                  placeholder="请输入正文内容..."
-                  className="w-full h-64"
-                />
-            </div>
-        </div>
+        )}
+    </div>
+  );
 
-        <button
-          onClick={onGenerate}
-          disabled={isGenerating || !inputBody.trim()}
-          className={`w-full py-3 rounded-lg font-bold text-lg transition-all shadow-lg ${
-            isGenerating || !inputBody.trim()
-              ? 'bg-slate-700 cursor-not-allowed text-slate-400'
-              : 'bg-gradient-to-r from-[#DE2910] to-[#b30000] hover:from-red-600 hover:to-red-800 text-white shadow-red-900/40 ring-1 ring-white/10'
-          }`}
-        >
-          {isGenerating ? '正在排版生成...' : '生成正式海报'}
-        </button>
-      </div>
-    );
-  }
-
-  return (
-    <div className="bg-[#111e36] p-6 rounded-xl shadow-lg border border-blue-900/50 space-y-6 h-full overflow-y-auto">
+  // If we are in "Editor" tab but content is generated, showing the layout settings
+  const renderPreviewControls = () => (
+    <div className="space-y-6">
       <div className="flex justify-between items-center border-b border-blue-900/50 pb-4">
         <h3 className="font-bold text-white font-serif-sc">版式微调</h3>
         <button 
@@ -171,7 +170,7 @@ export const Controls: React.FC<ControlsProps> = ({
         </div>
       </div>
 
-      {/* Color Info (Read Only mostly, as style is fixed) */}
+      {/* Color Info */}
       <div className="space-y-2">
          <label className="text-xs font-semibold uppercase text-blue-400 tracking-wider">配色方案</label>
          <div className="flex gap-2">
@@ -191,11 +190,93 @@ export const Controls: React.FC<ControlsProps> = ({
                 {isGeneratingImage ? '正在绘制纹理...' : '更换红金底纹'}
             </button>
        </div>
-       
-       <div className="text-xs text-blue-500 mt-4 opacity-60">
-        <p>样式说明: <br/>标准公文风格，强调政治性与严肃性。标题采用书法字体，正文采用宋体。</p>
-       </div>
+    </div>
+  );
 
+  // Render Input Editor
+  const renderInput = () => (
+    <>
+        <h2 className="text-xl font-bold mb-4 text-white flex items-center gap-2">
+            <div className="p-1 bg-red-600 rounded shadow-lg shadow-red-900/50">
+                <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5 text-white" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 20H5a2 2 0 01-2-2V6a2 2 0 012-2h10a2 2 0 012 2v1m2 13a2 2 0 01-2-2V7m2 13a2 2 0 002-2V9a2 2 0 00-2-2h-2m-4-3H9M7 16h6M7 8h6v4H7V8z" /></svg>
+            </div>
+            <span className="font-serif-sc tracking-wide">
+                红头文件/海报生成
+            </span>
+        </h2>
+        <p className="text-blue-200 mb-4 text-sm opacity-80 leading-relaxed">
+          请输入标题和正文内容。使用编辑器自定义正文格式。<br/>
+          <span className="text-xs text-blue-400">支持：节日纪律、安全生产、廉洁提醒等场景。</span>
+        </p>
+        
+        <div className="space-y-4 mb-4">
+            <div>
+                <label className="block text-xs font-semibold text-blue-300 mb-1 uppercase tracking-wider">标题 (Title)</label>
+                <input
+                    value={inputTitle}
+                    onChange={(e) => setInputTitle(e.target.value)}
+                    placeholder="例如：节日纪律提醒"
+                    className="w-full bg-[#0a1628] border border-blue-800 rounded-lg p-3 text-white focus:ring-2 focus:ring-red-600 focus:border-transparent focus:outline-none font-serif-sc font-bold text-lg placeholder-blue-700/50"
+                />
+            </div>
+            <div>
+                <label className="block text-xs font-semibold text-blue-300 mb-1 uppercase tracking-wider">正文 (Content)</label>
+                <SimpleEditor
+                  value={inputBody}
+                  onChange={(html) => setInputBody(html)}
+                  placeholder="请输入正文内容..."
+                  className="w-full h-64"
+                />
+            </div>
+        </div>
+
+        <button
+          onClick={onGenerate}
+          disabled={isGenerating || !inputBody.trim()}
+          className={`w-full py-3 rounded-lg font-bold text-lg transition-all shadow-lg ${
+            isGenerating || !inputBody.trim()
+              ? 'bg-slate-700 cursor-not-allowed text-slate-400'
+              : 'bg-gradient-to-r from-[#DE2910] to-[#b30000] hover:from-red-600 hover:to-red-800 text-white shadow-red-900/40 ring-1 ring-white/10'
+          }`}
+        >
+          {isGenerating ? '正在排版生成...' : '生成正式海报'}
+        </button>
+    </>
+  );
+
+  return (
+    <div className="bg-[#111e36] rounded-xl shadow-lg border border-blue-900/50 h-full flex flex-col overflow-hidden">
+        {/* Tab Header */}
+        <div className="flex border-b border-blue-900/50 bg-[#0a1628]">
+            <button 
+                onClick={() => setActiveTab('editor')}
+                className={`flex-1 py-3 text-sm font-bold tracking-wide transition-colors ${activeTab === 'editor' ? 'text-white bg-[#111e36] border-b-2 border-red-600' : 'text-blue-400 hover:text-blue-200'}`}
+            >
+                编辑设计
+            </button>
+            <button 
+                onClick={() => setActiveTab('history')}
+                className={`flex-1 py-3 text-sm font-bold tracking-wide transition-colors ${activeTab === 'history' ? 'text-white bg-[#111e36] border-b-2 border-red-600' : 'text-blue-400 hover:text-blue-200'}`}
+            >
+                历史记录
+            </button>
+        </div>
+
+        {/* Tab Content */}
+        <div className="flex-1 overflow-y-auto p-6 custom-scrollbar">
+            {activeTab === 'history' ? (
+                renderHistory()
+            ) : (
+                content ? renderPreviewControls() : renderInput()
+            )}
+        </div>
+        
+        {/* Footer info only shown in editor */}
+        {activeTab === 'editor' && content && (
+            <div className="p-4 border-t border-blue-900/50 bg-[#111e36] text-xs text-blue-500 opacity-60">
+                <p>样式说明: 标准公文风格，强调政治性与严肃性。</p>
+            </div>
+        )}
     </div>
   );
 };

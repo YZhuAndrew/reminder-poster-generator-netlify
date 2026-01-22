@@ -1,7 +1,7 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { Controls } from './components/Controls';
 import { PosterCanvas } from './components/PosterCanvas';
-import { PosterContent, PosterState, PosterStyle, Step } from './types';
+import { PosterContent, PosterState, PosterStyle, Step, HistoryItem } from './types';
 import { analyzeWarningText, generatePosterBackground } from './services/geminiService';
 
 const DEFAULT_STYLE: PosterStyle = {
@@ -33,6 +33,64 @@ function App() {
   // Visual Style Config
   const [styleConfig, setStyleConfig] = useState<PosterStyle>(DEFAULT_STYLE);
 
+  // History State
+  const [history, setHistory] = useState<HistoryItem[]>([]);
+
+  // Load history from local storage on mount
+  useEffect(() => {
+    const saved = localStorage.getItem('poster_history');
+    if (saved) {
+      try {
+        setHistory(JSON.parse(saved));
+      } catch (e) {
+        console.error("Failed to parse history", e);
+      }
+    }
+  }, []);
+
+  // Save history to local storage whenever it changes
+  useEffect(() => {
+    localStorage.setItem('poster_history', JSON.stringify(history));
+  }, [history]);
+
+  const addToHistory = (
+    title: string, 
+    body: string, 
+    content: PosterContent, 
+    imageUrl: string | null,
+    style: PosterStyle
+  ) => {
+    const newItem: HistoryItem = {
+      id: Date.now().toString(),
+      timestamp: Date.now(),
+      title,
+      body,
+      content,
+      imageUrl,
+      styleConfig: style
+    };
+    // Add to top, keep max 20 items
+    setHistory(prev => [newItem, ...prev].slice(0, 20));
+  };
+
+  const handleDeleteHistory = (id: string) => {
+    setHistory(prev => prev.filter(item => item.id !== id));
+  };
+
+  const handleLoadHistory = (item: HistoryItem) => {
+    setInputTitle(item.title);
+    setInputBody(item.body);
+    setStyleConfig(item.styleConfig);
+    setState({
+      content: item.content,
+      imageUrl: item.imageUrl,
+      isGeneratingText: false,
+      isGeneratingImage: false,
+      error: null
+    });
+    setStep(Step.PREVIEW);
+  };
+
   const handleGenerate = async () => {
     if (!inputTitle.trim() || !inputBody.trim()) return;
 
@@ -48,6 +106,9 @@ function App() {
       // 2. Generate Image (in parallel or sequence)
       const imageUrl = await generatePosterBackground(content.imagePrompt);
       setState(prev => ({ ...prev, imageUrl, isGeneratingImage: false }));
+
+      // 3. Auto-save to history on success
+      addToHistory(inputTitle, inputBody, content, imageUrl, styleConfig);
 
     } catch (error) {
       console.error(error);
@@ -66,6 +127,10 @@ function App() {
     try {
       const imageUrl = await generatePosterBackground(state.content.imagePrompt + ` variant ${Date.now()}`);
       setState(prev => ({ ...prev, imageUrl, isGeneratingImage: false }));
+      
+      // Optional: Update history item if we are currently viewing one? 
+      // For simplicity, we won't auto-update history on regenerate to avoid overwriting "original" states,
+      // but user can re-generate to create a new entry if they click "Generate" again.
     } catch (error) {
        setState(prev => ({ ...prev, isGeneratingImage: false }));
     }
@@ -94,6 +159,11 @@ function App() {
           onRegenerateImage={handleRegenerateImage}
           isGeneratingImage={state.isGeneratingImage}
           onBackToEdit={handleBackToEdit}
+          
+          // History Props
+          history={history}
+          onLoadHistory={handleLoadHistory}
+          onDeleteHistory={handleDeleteHistory}
         />
         {state.error && (
             <div className="mt-4 p-3 bg-red-900/50 text-red-200 text-sm rounded border border-red-800">
@@ -124,6 +194,7 @@ function App() {
                     </svg>
                 </div>
                 <p className="text-blue-200 font-serif-sc">等待生成海报...</p>
+                <p className="text-blue-400/50 text-xs mt-2">或从左侧“历史记录”加载</p>
             </div>
          )}
       </div>

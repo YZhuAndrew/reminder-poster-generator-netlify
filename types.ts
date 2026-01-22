@@ -26,6 +26,16 @@ export interface PosterStyle {
   heightScale: number;
 }
 
+export interface HistoryItem {
+  id: string;
+  timestamp: number;
+  title: string; // Original input title
+  body: string;  // Original input body
+  content: PosterContent;
+  imageUrl: string | null;
+  styleConfig: PosterStyle;
+}
+
 export enum Step {
   INPUT = 'INPUT',
   PREVIEW = 'PREVIEW',
