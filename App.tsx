@@ -3,6 +3,7 @@ import { Controls } from './components/Controls';
 import { PosterCanvas } from './components/PosterCanvas';
 import { PosterContent, PosterState, PosterStyle, Step, HistoryItem } from './types';
 import { analyzeWarningText, generatePosterBackground } from './services/geminiService';
+import html2canvas from 'html2canvas';
 
 const DEFAULT_STYLE: PosterStyle = {
   titleSize: 56,
@@ -35,6 +36,7 @@ function App() {
 
   // History State
   const [history, setHistory] = useState<HistoryItem[]>([]);
+  const [currentId, setCurrentId] = useState<string | null>(null);
 
   // Load history from local storage on mount
   useEffect(() => {
@@ -58,26 +60,46 @@ function App() {
     body: string, 
     content: PosterContent, 
     imageUrl: string | null,
-    style: PosterStyle
+    style: PosterStyle,
+    existingId: string | null = null
   ) => {
-    const newItem: HistoryItem = {
-      id: Date.now().toString(),
-      timestamp: Date.now(),
-      title,
-      body,
-      content,
-      imageUrl,
-      styleConfig: style
-    };
-    // Add to top, keep max 20 items
-    setHistory(prev => [newItem, ...prev].slice(0, 20));
+    const timestamp = Date.now();
+    
+    if (existingId) {
+      // Update existing
+      setHistory(prev => prev.map(item => {
+        if (item.id === existingId) {
+            return { ...item, title, body, content, imageUrl, styleConfig: style, timestamp };
+        }
+        return item;
+      }));
+    } else {
+      // Create new
+      const id = timestamp.toString();
+      const newItem: HistoryItem = {
+        id,
+        timestamp,
+        title,
+        body,
+        content,
+        imageUrl,
+        styleConfig: style
+      };
+      // Add to top, keep max 20 items
+      setHistory(prev => [newItem, ...prev].slice(0, 20));
+      setCurrentId(id);
+    }
   };
 
   const handleDeleteHistory = (id: string) => {
     setHistory(prev => prev.filter(item => item.id !== id));
+    if (currentId === id) {
+        handleNew(); // Reset if deleting current
+    }
   };
 
   const handleLoadHistory = (item: HistoryItem) => {
+    setCurrentId(item.id);
     setInputTitle(item.title);
     setInputBody(item.body);
     setStyleConfig(item.styleConfig);
@@ -91,10 +113,35 @@ function App() {
     setStep(Step.PREVIEW);
   };
 
+  const handleNew = () => {
+    setCurrentId(null);
+    setInputTitle('');
+    setInputBody('');
+    setStyleConfig(DEFAULT_STYLE);
+    setState({
+        content: null,
+        imageUrl: null,
+        isGeneratingText: false,
+        isGeneratingImage: false,
+        error: null,
+    });
+    setStep(Step.INPUT);
+  };
+
+  const handleManualSave = () => {
+    if (!state.content) return;
+    addToHistory(inputTitle, inputBody, state.content, state.imageUrl, styleConfig, currentId);
+    alert('已保存到历史记录');
+  };
+
   const handleGenerate = async () => {
     if (!inputTitle.trim() || !inputBody.trim()) return;
 
     setState(prev => ({ ...prev, isGeneratingText: true, error: null }));
+    // Reset ID on new generation to ensure we don't overwrite history unless user explicitly saves over it later
+    // Or, we can choose to update the current ID. 
+    // Logic: If I click generate, it's a new version.
+    setCurrentId(null); 
 
     try {
       // 1. Analyze text structure (Title + Body)
@@ -107,8 +154,8 @@ function App() {
       const imageUrl = await generatePosterBackground(content.imagePrompt);
       setState(prev => ({ ...prev, imageUrl, isGeneratingImage: false }));
 
-      // 3. Auto-save to history on success
-      addToHistory(inputTitle, inputBody, content, imageUrl, styleConfig);
+      // 3. Auto-save to history on success (creates a NEW entry)
+      addToHistory(inputTitle, inputBody, content, imageUrl, styleConfig, null);
 
     } catch (error) {
       console.error(error);
@@ -127,18 +174,45 @@ function App() {
     try {
       const imageUrl = await generatePosterBackground(state.content.imagePrompt + ` variant ${Date.now()}`);
       setState(prev => ({ ...prev, imageUrl, isGeneratingImage: false }));
-      
-      // Optional: Update history item if we are currently viewing one? 
-      // For simplicity, we won't auto-update history on regenerate to avoid overwriting "original" states,
-      // but user can re-generate to create a new entry if they click "Generate" again.
     } catch (error) {
        setState(prev => ({ ...prev, isGeneratingImage: false }));
     }
   };
 
+  const handleDownloadImage = async () => {
+    const element = document.getElementById('poster-capture-area');
+    if (!element) return;
+
+    try {
+        // Use html2canvas
+        // We need to handle the scale transform. html2canvas captures what it sees.
+        // But our poster might be scaled down on screen.
+        // We want to capture it at full resolution (1:1 scale or higher).
+        
+        const canvas = await html2canvas(element, {
+            scale: 2, // 2x for retina quality
+            useCORS: true, // Allow cross-origin images (important for base64 or external images)
+            backgroundColor: null,
+            // Only capture the element's logical dimensions, ignoring the css transform scale on the screen if possible
+            // Note: html2canvas usually respects the rendered size. 
+            // Since our 'PosterCanvas' uses transform: scale(), we might need a workaround if it comes out small.
+            // However, usually referencing the inner element works well.
+        });
+
+        const link = document.createElement('a');
+        link.download = `poster-${Date.now()}.png`;
+        link.href = canvas.toDataURL('image/png');
+        link.click();
+    } catch (err) {
+        console.error("Download failed", err);
+        alert("下载图片失败，请重试");
+    }
+  };
+
   const handleBackToEdit = () => {
-    // Preserve inputTitle and inputBody, but clear generated content
-    setState(prev => ({ ...prev, content: null, imageUrl: null, error: null }));
+    // Preserve inputTitle and inputBody, but clear generated content? 
+    // User probably just wants to adjust text.
+    // Let's keep content but allow them to regenerate.
     setStep(Step.INPUT);
   };
 
@@ -164,6 +238,11 @@ function App() {
           history={history}
           onLoadHistory={handleLoadHistory}
           onDeleteHistory={handleDeleteHistory}
+          
+          // New Actions
+          onNew={handleNew}
+          onSave={handleManualSave}
+          onDownload={handleDownloadImage}
         />
         {state.error && (
             <div className="mt-4 p-3 bg-red-900/50 text-red-200 text-sm rounded border border-red-800">

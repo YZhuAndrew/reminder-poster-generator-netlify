@@ -22,6 +22,11 @@ interface ControlsProps {
   history: HistoryItem[];
   onLoadHistory: (item: HistoryItem) => void;
   onDeleteHistory: (id: string) => void;
+
+  // Actions
+  onNew: () => void;
+  onSave: () => void;
+  onDownload: () => void;
 }
 
 export const Controls: React.FC<ControlsProps> = ({
@@ -39,7 +44,10 @@ export const Controls: React.FC<ControlsProps> = ({
   onBackToEdit,
   history,
   onLoadHistory,
-  onDeleteHistory
+  onDeleteHistory,
+  onNew,
+  onSave,
+  onDownload
 }) => {
   const [activeTab, setActiveTab] = useState<'editor' | 'history'>('editor');
 
@@ -100,6 +108,17 @@ export const Controls: React.FC<ControlsProps> = ({
         </button>
       </div>
 
+      {/* Download Action */}
+      <button 
+        onClick={onDownload}
+        className="w-full py-3 bg-gradient-to-r from-emerald-600 to-emerald-800 hover:from-emerald-500 hover:to-emerald-700 text-white font-bold rounded-lg shadow-lg shadow-emerald-900/40 transition-all flex items-center justify-center gap-2 mb-2"
+      >
+        <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+           <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4" />
+        </svg>
+        下载海报图片
+      </button>
+
       {/* Layout Settings */}
       <div className="space-y-4">
         <label className="text-xs font-semibold uppercase text-blue-400 tracking-wider">画布尺寸 (像素)</label>
@@ -130,9 +149,6 @@ export const Controls: React.FC<ControlsProps> = ({
                 onChange={(e) => handleChange('heightScale', Number(e.target.value))}
                 className="w-full accent-red-600 h-2 bg-blue-900 rounded-lg appearance-none cursor-pointer"
             />
-            <p className="text-[10px] text-blue-500 mt-1">
-                * 若文字显示不全，请拉大高度直至没有滚动条。
-            </p>
         </div>
       </div>
 
@@ -189,6 +205,12 @@ export const Controls: React.FC<ControlsProps> = ({
             >
                 {isGeneratingImage ? '正在绘制纹理...' : '更换红金底纹'}
             </button>
+            <button 
+                onClick={onSave}
+                className="w-full py-2 bg-blue-900 text-blue-100 hover:bg-blue-800 rounded-lg text-sm font-medium transition-colors border border-blue-700"
+            >
+                保存当前更改
+            </button>
        </div>
     </div>
   );
@@ -196,14 +218,21 @@ export const Controls: React.FC<ControlsProps> = ({
   // Render Input Editor
   const renderInput = () => (
     <>
-        <h2 className="text-xl font-bold mb-4 text-white flex items-center gap-2">
-            <div className="p-1 bg-red-600 rounded shadow-lg shadow-red-900/50">
-                <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5 text-white" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 20H5a2 2 0 01-2-2V6a2 2 0 012-2h10a2 2 0 012 2v1m2 13a2 2 0 01-2-2V7m2 13a2 2 0 002-2V9a2 2 0 00-2-2h-2m-4-3H9M7 16h6M7 8h6v4H7V8z" /></svg>
+        <div className="flex items-center justify-between mb-4">
+             <h2 className="text-xl font-bold text-white flex items-center gap-2">
+                <div className="p-1 bg-red-600 rounded shadow-lg shadow-red-900/50">
+                    <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5 text-white" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 20H5a2 2 0 01-2-2V6a2 2 0 012-2h10a2 2 0 012 2v1m2 13a2 2 0 01-2-2V7m2 13a2 2 0 002-2V9a2 2 0 00-2-2h-2m-4-3H9M7 16h6M7 8h6v4H7V8z" /></svg>
+                </div>
+                <span className="font-serif-sc tracking-wide">
+                    海报生成
+                </span>
+            </h2>
+            <div className="flex gap-2">
+                 <button onClick={onNew} className="text-xs px-2 py-1 bg-blue-900/50 hover:bg-blue-800 rounded text-blue-200 border border-blue-800">新建</button>
+                 <button onClick={onSave} className="text-xs px-2 py-1 bg-blue-900/50 hover:bg-blue-800 rounded text-blue-200 border border-blue-800">保存草稿</button>
             </div>
-            <span className="font-serif-sc tracking-wide">
-                红头文件/海报生成
-            </span>
-        </h2>
+        </div>
+       
         <p className="text-blue-200 mb-4 text-sm opacity-80 leading-relaxed">
           请输入标题和正文内容。使用编辑器自定义正文格式。<br/>
           <span className="text-xs text-blue-400">支持：节日纪律、安全生产、廉洁提醒等场景。</span>

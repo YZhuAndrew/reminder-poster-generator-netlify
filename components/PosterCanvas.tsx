@@ -56,6 +56,7 @@ export const PosterCanvas: React.FC<PosterCanvasProps> = ({
   return (
     <div ref={containerRef} className="w-full h-full flex items-center justify-center overflow-hidden">
       <div 
+        id="poster-capture-area"
         className="relative bg-[#DE2910] shadow-2xl overflow-hidden text-black flex-shrink-0 transition-[width,height] duration-200 ease-out"
         style={{ 
             boxShadow: '0 25px 50px -12px rgba(0, 0, 0, 0.5)',
@@ -71,6 +72,7 @@ export const PosterCanvas: React.FC<PosterCanvasProps> = ({
               src={imageUrl} 
               alt="Background Texture" 
               className="absolute inset-0 w-full h-full object-cover z-0 opacity-100"
+              crossOrigin="anonymous" 
             />
         ) : (
           <div className="absolute inset-0 bg-gradient-to-b from-[#ff4d4d] to-[#b30000] z-0 flex items-center justify-center">
