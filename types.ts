@@ -15,6 +15,15 @@ export interface PosterState {
   error: string | null;
 }
 
+export interface PosterTheme {
+  id: string;
+  name: string;
+  primaryColor: string;    // Main outer background/border
+  secondaryColor: string;  // Title text color
+  backgroundColor: string; // Paper/Content background
+  accentColor: string;     // Footer text, decorations
+}
+
 export interface PosterStyle {
   titleSize: number;
   bodySize: number;
@@ -24,6 +33,8 @@ export interface PosterStyle {
   fontFamily: 'sans' | 'serif';
   widthScale: number;
   heightScale: number;
+  theme: PosterTheme;
+  textureStyle: string;
 }
 
 export interface HistoryItem {

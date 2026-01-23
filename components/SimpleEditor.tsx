@@ -96,6 +96,23 @@ export const SimpleEditor: React.FC<SimpleEditorProps> = ({ value, onChange, pla
 
         <div className="w-px h-4 bg-slate-300 mx-1"></div>
 
+        {/* Lists & Indentation */}
+        <ToolbarButton cmd="insertUnorderedList" icon={
+          <svg className="w-4 h-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><line x1="8" y1="6" x2="21" y2="6"></line><line x1="8" y1="12" x2="21" y2="12"></line><line x1="8" y1="18" x2="21" y2="18"></line><line x1="3" y1="6" x2="3.01" y2="6"></line><line x1="3" y1="12" x2="3.01" y2="12"></line><line x1="3" y1="18" x2="3.01" y2="18"></line></svg>
+        } label="无序列表" />
+        <ToolbarButton cmd="insertOrderedList" icon={
+           <svg className="w-4 h-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><line x1="10" y1="6" x2="21" y2="6"></line><line x1="10" y1="12" x2="21" y2="12"></line><line x1="10" y1="18" x2="21" y2="18"></line><path d="M4 6h1v4"></path><path d="M4 10h2"></path><path d="M6 18H4c0-1 2-2 2-3s-1-1.5-2-1"></path></svg>
+        } label="有序列表" />
+        
+        <ToolbarButton cmd="outdent" icon={
+          <svg className="w-4 h-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><line x1="21" y1="10" x2="3" y2="10"></line><line x1="21" y1="6" x2="3" y2="6"></line><line x1="21" y1="14" x2="3" y2="14"></line><line x1="21" y1="18" x2="3" y2="18"></line><polyline points="7 20 2 15 7 10"></polyline></svg>
+        } label="减少缩进" />
+        <ToolbarButton cmd="indent" icon={
+           <svg className="w-4 h-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><line x1="21" y1="10" x2="3" y2="10"></line><line x1="21" y1="6" x2="3" y2="6"></line><line x1="21" y1="14" x2="3" y2="14"></line><line x1="21" y1="18" x2="3" y2="18"></line><polyline points="3 20 8 15 3 10"></polyline></svg>
+        } label="增加缩进" />
+
+        <div className="w-px h-4 bg-slate-300 mx-1"></div>
+
         {/* Font Size Hack (using fontSize 1-7) */}
         <ToolbarButton cmd="fontSize" arg="5" icon={<span className="text-lg font-bold">A+</span>} label="大字" />
         <ToolbarButton cmd="fontSize" arg="3" icon={<span className="text-sm font-bold">A</span>} label="正常" />
@@ -107,7 +124,8 @@ export const SimpleEditor: React.FC<SimpleEditorProps> = ({ value, onChange, pla
             ref={contentRef}
             contentEditable
             onInput={handleInput}
-            className="w-full h-full p-4 text-slate-900 font-serif-sc focus:outline-none overflow-y-auto leading-relaxed"
+            // Tailwind lists require specific styles to be visible
+            className="w-full h-full p-4 text-slate-900 font-serif-sc focus:outline-none overflow-y-auto leading-relaxed [&_ul]:list-disc [&_ul]:pl-5 [&_ol]:list-decimal [&_ol]:pl-5"
             style={{ minHeight: '200px' }}
         />
         {/* Placeholder overlay */}

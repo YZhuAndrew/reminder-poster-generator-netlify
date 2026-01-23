@@ -1,9 +1,54 @@
 import React, { useState, useEffect } from 'react';
 import { Controls } from './components/Controls';
 import { PosterCanvas } from './components/PosterCanvas';
-import { PosterContent, PosterState, PosterStyle, Step, HistoryItem } from './types';
+import { PosterContent, PosterState, PosterStyle, Step, HistoryItem, PosterTheme } from './types';
 import { analyzeWarningText, generatePosterBackground } from './services/geminiService';
 import html2canvas from 'html2canvas';
+
+export const THEMES: PosterTheme[] = [
+  {
+    id: 'red',
+    name: '党建红',
+    primaryColor: '#DE2910',
+    secondaryColor: '#FFFF00',
+    backgroundColor: '#FFFBF0',
+    accentColor: '#DE2910'
+  },
+  {
+    id: 'blue',
+    name: '公安蓝',
+    primaryColor: '#0f2b5c',
+    secondaryColor: '#FFFFFF',
+    backgroundColor: '#F0F7FF',
+    accentColor: '#0f2b5c'
+  },
+  {
+    id: 'ink',
+    name: '水墨黑',
+    primaryColor: '#1a1a1a',
+    secondaryColor: '#D4AF37',
+    backgroundColor: '#F5F5F5',
+    accentColor: '#333333'
+  },
+  {
+    id: 'green',
+    name: '生态绿',
+    primaryColor: '#125227',
+    secondaryColor: '#FFFFFF',
+    backgroundColor: '#F2FFF5',
+    accentColor: '#125227'
+  }
+];
+
+export const TEXTURE_STYLES = [
+  { id: 'default', name: '智能推荐' },
+  { id: 'clouds', name: '祥云瑞气' },
+  { id: 'mountains', name: '巍巍青山' },
+  { id: 'bamboo', name: '高风亮节' },
+  { id: 'geometric', name: '现代几何' },
+  { id: 'paper', name: '宣纸质感' },
+  { id: 'city', name: '城市剪影' },
+];
 
 const DEFAULT_STYLE: PosterStyle = {
   titleSize: 56,
@@ -14,6 +59,8 @@ const DEFAULT_STYLE: PosterStyle = {
   fontFamily: 'serif',
   widthScale: 600, // Default width in px
   heightScale: 960, // Default height in px
+  theme: THEMES[0],
+  textureStyle: 'default'
 };
 
 function App() {
@@ -43,7 +90,17 @@ function App() {
     const saved = localStorage.getItem('poster_history');
     if (saved) {
       try {
-        setHistory(JSON.parse(saved));
+        const parsed = JSON.parse(saved);
+        // Migration: Ensure all history items have a theme object and textureStyle
+        const migrated = parsed.map((item: any) => ({
+            ...item,
+            styleConfig: {
+                ...item.styleConfig,
+                theme: item.styleConfig.theme || THEMES[0],
+                textureStyle: item.styleConfig.textureStyle || 'default'
+            }
+        }));
+        setHistory(migrated);
       } catch (e) {
         console.error("Failed to parse history", e);
       }
@@ -139,8 +196,6 @@ function App() {
 
     setState(prev => ({ ...prev, isGeneratingText: true, error: null }));
     // Reset ID on new generation to ensure we don't overwrite history unless user explicitly saves over it later
-    // Or, we can choose to update the current ID. 
-    // Logic: If I click generate, it's a new version.
     setCurrentId(null); 
 
     try {
@@ -151,7 +206,8 @@ function App() {
       setStep(Step.PREVIEW);
 
       // 2. Generate Image (in parallel or sequence)
-      const imageUrl = await generatePosterBackground(content.imagePrompt);
+      // Pass the current theme and texture style
+      const imageUrl = await generatePosterBackground(content.imagePrompt, styleConfig.theme, styleConfig.textureStyle);
       setState(prev => ({ ...prev, imageUrl, isGeneratingImage: false }));
 
       // 3. Auto-save to history on success (creates a NEW entry)
@@ -172,7 +228,8 @@ function App() {
     if (!state.content) return;
     setState(prev => ({ ...prev, isGeneratingImage: true }));
     try {
-      const imageUrl = await generatePosterBackground(state.content.imagePrompt + ` variant ${Date.now()}`);
+      // Pass the current theme and texture style
+      const imageUrl = await generatePosterBackground(state.content.imagePrompt + ` variant ${Date.now()}`, styleConfig.theme, styleConfig.textureStyle);
       setState(prev => ({ ...prev, imageUrl, isGeneratingImage: false }));
     } catch (error) {
        setState(prev => ({ ...prev, isGeneratingImage: false }));
@@ -184,19 +241,10 @@ function App() {
     if (!element) return;
 
     try {
-        // Use html2canvas
-        // We need to handle the scale transform. html2canvas captures what it sees.
-        // But our poster might be scaled down on screen.
-        // We want to capture it at full resolution (1:1 scale or higher).
-        
         const canvas = await html2canvas(element, {
             scale: 2, // 2x for retina quality
             useCORS: true, // Allow cross-origin images (important for base64 or external images)
             backgroundColor: null,
-            // Only capture the element's logical dimensions, ignoring the css transform scale on the screen if possible
-            // Note: html2canvas usually respects the rendered size. 
-            // Since our 'PosterCanvas' uses transform: scale(), we might need a workaround if it comes out small.
-            // However, usually referencing the inner element works well.
         });
 
         const link = document.createElement('a');
@@ -210,9 +258,6 @@ function App() {
   };
 
   const handleBackToEdit = () => {
-    // Preserve inputTitle and inputBody, but clear generated content? 
-    // User probably just wants to adjust text.
-    // Let's keep content but allow them to regenerate.
     setStep(Step.INPUT);
   };
 
@@ -243,6 +288,10 @@ function App() {
           onNew={handleNew}
           onSave={handleManualSave}
           onDownload={handleDownloadImage}
+          
+          // Theme Props
+          availableThemes={THEMES}
+          availableTextures={TEXTURE_STYLES}
         />
         {state.error && (
             <div className="mt-4 p-3 bg-red-900/50 text-red-200 text-sm rounded border border-red-800">

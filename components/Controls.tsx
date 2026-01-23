@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { PosterStyle, PosterContent, HistoryItem } from '../types';
+import { PosterStyle, PosterContent, HistoryItem, PosterTheme } from '../types';
 import { SimpleEditor } from './SimpleEditor';
 
 interface ControlsProps {
@@ -27,6 +27,10 @@ interface ControlsProps {
   onNew: () => void;
   onSave: () => void;
   onDownload: () => void;
+
+  // Themes & Textures
+  availableThemes: PosterTheme[];
+  availableTextures: { id: string, name: string }[];
 }
 
 export const Controls: React.FC<ControlsProps> = ({
@@ -47,7 +51,9 @@ export const Controls: React.FC<ControlsProps> = ({
   onDeleteHistory,
   onNew,
   onSave,
-  onDownload
+  onDownload,
+  availableThemes,
+  availableTextures
 }) => {
   const [activeTab, setActiveTab] = useState<'editor' | 'history'>('editor');
 
@@ -114,7 +120,7 @@ export const Controls: React.FC<ControlsProps> = ({
         className="w-full py-3 bg-gradient-to-r from-emerald-600 to-emerald-800 hover:from-emerald-500 hover:to-emerald-700 text-white font-bold rounded-lg shadow-lg shadow-emerald-900/40 transition-all flex items-center justify-center gap-2 mb-2"
       >
         <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-           <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4" />
+           <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4 4m4 4V4" />
         </svg>
         下载海报图片
       </button>
@@ -186,13 +192,42 @@ export const Controls: React.FC<ControlsProps> = ({
         </div>
       </div>
 
-      {/* Color Info */}
+      {/* Color / Theme Selection */}
       <div className="space-y-2">
          <label className="text-xs font-semibold uppercase text-blue-400 tracking-wider">配色方案</label>
-         <div className="flex gap-2">
-            <div className="h-8 flex-1 bg-[#DE2910] rounded border border-white/10 flex items-center justify-center text-[10px] text-white/80">中国红</div>
-            <div className="h-8 flex-1 bg-[#FFFF00] rounded border border-white/10 flex items-center justify-center text-[10px] text-black/80 font-bold">党徽金</div>
-            <div className="h-8 flex-1 bg-[#FFFBF0] rounded border border-white/10 flex items-center justify-center text-[10px] text-black/80">米白纸</div>
+         <div className="grid grid-cols-4 gap-2">
+            {availableThemes.map(theme => (
+                <button
+                    key={theme.id}
+                    onClick={() => handleChange('theme', theme)}
+                    className={`h-10 rounded border flex flex-col items-center justify-center transition-all ${styleConfig.theme?.id === theme.id ? 'border-white ring-2 ring-blue-500 scale-105' : 'border-white/10 opacity-70 hover:opacity-100'}`}
+                    style={{ backgroundColor: theme.primaryColor }}
+                    title={theme.name}
+                >
+                    <span 
+                        className="text-[10px] font-bold" 
+                        style={{ color: theme.secondaryColor }}
+                    >
+                        {theme.name}
+                    </span>
+                </button>
+            ))}
+         </div>
+      </div>
+
+      {/* Texture Style Selection */}
+      <div className="space-y-2">
+         <label className="text-xs font-semibold uppercase text-blue-400 tracking-wider">背景纹理</label>
+         <div className="grid grid-cols-3 gap-2">
+            {availableTextures && availableTextures.map(tex => (
+                <button
+                    key={tex.id}
+                    onClick={() => handleChange('textureStyle', tex.id)}
+                    className={`py-2 rounded border text-xs font-medium transition-all ${styleConfig.textureStyle === tex.id ? 'bg-blue-600 text-white border-blue-400 ring-1 ring-blue-300' : 'bg-[#0a1628] text-blue-300 border-blue-800 hover:border-blue-600'}`}
+                >
+                    {tex.name}
+                </button>
+            ))}
          </div>
       </div>
 
@@ -201,9 +236,16 @@ export const Controls: React.FC<ControlsProps> = ({
             <button 
                 onClick={onRegenerateImage}
                 disabled={isGeneratingImage}
-                className="w-full py-2 bg-blue-800/50 hover:bg-blue-800 text-blue-100 rounded-lg text-sm font-medium transition-colors border border-blue-700/50"
+                className="w-full py-2 bg-blue-800/50 hover:bg-blue-800 text-blue-100 rounded-lg text-sm font-medium transition-colors border border-blue-700/50 flex items-center justify-center gap-2"
             >
-                {isGeneratingImage ? '正在绘制纹理...' : '更换红金底纹'}
+                {isGeneratingImage ? (
+                    <>
+                        <div className="w-4 h-4 border-2 border-white/30 border-t-white rounded-full animate-spin"></div>
+                        绘制中...
+                    </>
+                ) : (
+                    '根据当前配置生成背景'
+                )}
             </button>
             <button 
                 onClick={onSave}

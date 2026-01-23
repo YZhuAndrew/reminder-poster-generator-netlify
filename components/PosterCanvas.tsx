@@ -16,6 +16,7 @@ export const PosterCanvas: React.FC<PosterCanvasProps> = ({
 }) => {
   const fontFamilyClass = 'font-serif-sc'; 
   const footerSize = Math.max(10, Math.round(styleConfig.bodySize * 0.6));
+  const theme = styleConfig.theme; // Short alias
   
   // Logical dimensions from config (pixels)
   // Fallback to reasonable defaults if state was initialized with old values
@@ -57,13 +58,14 @@ export const PosterCanvas: React.FC<PosterCanvasProps> = ({
     <div ref={containerRef} className="w-full h-full flex items-center justify-center overflow-hidden">
       <div 
         id="poster-capture-area"
-        className="relative bg-[#DE2910] shadow-2xl overflow-hidden text-black flex-shrink-0 transition-[width,height] duration-200 ease-out"
+        className="relative shadow-2xl overflow-hidden text-black flex-shrink-0 transition-[width,height,background-color] duration-200 ease-out"
         style={{ 
             boxShadow: '0 25px 50px -12px rgba(0, 0, 0, 0.5)',
             width: `${logicalW}px`,
             height: `${logicalH}px`,
             transform: `scale(${scale})`,
             transformOrigin: 'center center',
+            backgroundColor: theme.primaryColor // Dynamic primary color
         }}
       >
         {/* Background Image Layer */}
@@ -75,9 +77,14 @@ export const PosterCanvas: React.FC<PosterCanvasProps> = ({
               crossOrigin="anonymous" 
             />
         ) : (
-          <div className="absolute inset-0 bg-gradient-to-b from-[#ff4d4d] to-[#b30000] z-0 flex items-center justify-center">
+          <div 
+            className="absolute inset-0 z-0 flex items-center justify-center"
+            style={{ 
+                background: `linear-gradient(to bottom, ${theme.primaryColor}, #000000)`
+            }}
+          >
              {isGeneratingImage && (
-                <div className="animate-spin text-yellow-400 w-8 h-8 border-4 border-current border-t-transparent rounded-full"></div>
+                <div className="animate-spin w-8 h-8 border-4 border-current border-t-transparent rounded-full" style={{ color: theme.secondaryColor }}></div>
              )}
           </div>
         )}
@@ -91,8 +98,8 @@ export const PosterCanvas: React.FC<PosterCanvasProps> = ({
                     className={`font-black ${fontFamilyClass} text-center`}
                     style={{ 
                         fontSize: `${styleConfig.titleSize}px`,
-                        color: '#FFFF00', // Gold
-                        textShadow: '2px 2px 4px #8B0000, 0 0 10px rgba(255,215,0,0.5)',
+                        color: theme.secondaryColor, // Dynamic Title Color
+                        textShadow: '2px 2px 4px rgba(0,0,0,0.5), 0 0 10px rgba(0,0,0,0.2)',
                         fontFamily: '"Noto Serif SC", serif',
                         lineHeight: 1.2,
                         wordBreak: 'break-word',
@@ -103,7 +110,10 @@ export const PosterCanvas: React.FC<PosterCanvasProps> = ({
             </div>
 
             {/* 2. White "Paper" Content Box */}
-            <div className="flex-1 w-full bg-[#FFFBF0] rounded-xl shadow-[0_10px_30px_rgba(0,0,0,0.3)] p-8 relative flex flex-col overflow-hidden">
+            <div 
+                className="flex-1 w-full rounded-xl shadow-[0_10px_30px_rgba(0,0,0,0.3)] p-8 relative flex flex-col overflow-hidden transition-colors duration-300"
+                style={{ backgroundColor: theme.backgroundColor }} // Dynamic paper color
+            >
                 
                 {/* Scrollable Content Area */}
                 <div className="flex-1 overflow-y-auto pr-2 custom-scrollbar">
@@ -121,8 +131,12 @@ export const PosterCanvas: React.FC<PosterCanvasProps> = ({
                 {/* Footer Greeting */}
                 {content.footer && (
                     <div 
-                        className={`mt-4 pt-4 border-t border-[#DE2910]/20 text-center font-bold text-[#DE2910] ${fontFamilyClass} flex-shrink-0`} 
-                        style={{ fontSize: `${footerSize}px` }}
+                        className={`mt-4 pt-4 border-t text-center font-bold ${fontFamilyClass} flex-shrink-0`} 
+                        style={{ 
+                            fontSize: `${footerSize}px`,
+                            color: theme.accentColor, // Dynamic footer text
+                            borderColor: `${theme.accentColor}33` // 20% opacity border
+                        }}
                     >
                         {content.footer}
                     </div>
@@ -166,7 +180,7 @@ export const PosterCanvas: React.FC<PosterCanvasProps> = ({
           background: transparent;
         }
         .custom-scrollbar::-webkit-scrollbar-thumb {
-          background: #DE2910;
+          background: ${theme.accentColor};
           border-radius: 4px;
           opacity: 0.2;
         }
