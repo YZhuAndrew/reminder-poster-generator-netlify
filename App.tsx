@@ -263,8 +263,8 @@ function App() {
 
   return (
     <div className="min-h-screen flex flex-col lg:flex-row bg-[#050C1A]">
-      {/* Left Panel: Controls */}
-      <div className="w-full lg:w-[400px] flex-shrink-0 p-4 lg:h-screen lg:overflow-y-auto z-20">
+      {/* Left Panel: Controls (NOW MAIN, Flex-1) */}
+      <div className="flex-1 min-w-0 p-4 lg:h-screen lg:overflow-y-auto z-20 order-1">
         <Controls 
           inputTitle={inputTitle}
           setInputTitle={setInputTitle}
@@ -300,8 +300,8 @@ function App() {
         )}
       </div>
 
-      {/* Right Panel: Preview */}
-      <div className="flex-1 flex items-center justify-center p-4 lg:p-10 relative bg-[#050C1A] overflow-hidden">
+      {/* Right Panel: Preview (NOW SIDEBAR, Fixed Width) */}
+      <div className="w-full lg:w-[500px] flex-shrink-0 flex items-center justify-center p-4 relative bg-[#050C1A] overflow-hidden order-2 border-l border-white/5">
          {/* Background Grid Pattern */}
          <div className="absolute inset-0 z-0 opacity-20 pointer-events-none" 
               style={{ backgroundImage: 'radial-gradient(#1e3a8a 1px, transparent 1px)', backgroundSize: '24px 24px' }}>
