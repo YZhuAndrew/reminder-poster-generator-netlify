@@ -1,13 +1,20 @@
 import { GoogleGenAI, Type } from "@google/genai";
 import { PosterContent, PosterTheme } from "../types";
 
-// Initialize Gemini Client
-const ai = new GoogleGenAI({ apiKey: process.env.API_KEY });
+// Helper to get AI instance safely
+const getAI = () => {
+  const apiKey = process.env.API_KEY;
+  if (!apiKey) {
+    throw new Error("API Key is missing. Please set API_KEY in your environment variables.");
+  }
+  return new GoogleGenAI({ apiKey });
+};
 
 /**
  * Analyzes the warning text to extract metadata and footer, while keeping body content intact.
  */
 export const analyzeWarningText = async (title: string, bodyHtml: string): Promise<PosterContent> => {
+  const ai = getAI();
   const model = 'gemini-3-flash-preview';
   
   // Extract plain text for context (simple regex to strip tags for the prompt)
@@ -64,6 +71,7 @@ export const generatePosterBackground = async (prompt: string, theme: PosterThem
   const model = 'gemini-2.5-flash-image';
 
   try {
+    const ai = getAI();
     let styleKeywords = "subtle patterns, minimal, solemn";
     
     switch (textureStyle) {
