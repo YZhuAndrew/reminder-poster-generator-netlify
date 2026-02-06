@@ -1,8 +1,9 @@
 import React, { useState } from 'react';
-import { PosterStyle, PosterContent, HistoryItem, PosterTheme } from '../types';
+import { PosterStyle, PosterContent, HistoryItem, PosterTheme, Step } from '../types';
 import { SimpleEditor } from './SimpleEditor';
 
 interface ControlsProps {
+  step: Step; 
   inputTitle: string;
   setInputTitle: (val: string) => void;
   inputBody: string;
@@ -34,6 +35,7 @@ interface ControlsProps {
 }
 
 export const Controls: React.FC<ControlsProps> = ({
+  step,
   inputTitle,
   setInputTitle,
   inputBody,
@@ -108,8 +110,11 @@ export const Controls: React.FC<ControlsProps> = ({
         <h3 className="font-bold text-white font-serif-sc">版式微调</h3>
         <button 
             onClick={onBackToEdit}
-            className="text-xs text-blue-300 hover:text-white underline decoration-blue-500"
+            className="px-3 py-1 bg-blue-900/50 hover:bg-blue-800 text-blue-200 text-xs rounded border border-blue-800 transition-colors flex items-center gap-1"
         >
+            <svg className="w-3 h-3" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M11 17l-5-5m0 0l5-5m-5 5h12" />
+            </svg>
             返回编辑
         </button>
       </div>
@@ -136,7 +141,7 @@ export const Controls: React.FC<ControlsProps> = ({
                 <span className="text-xs text-blue-400">{styleConfig.widthScale}px</span>
             </div>
             <input 
-                type="range" min="300" max="1200" step="10"
+                type="range" min="300" max="1500" step="10"
                 value={styleConfig.widthScale} 
                 onChange={(e) => handleChange('widthScale', Number(e.target.value))}
                 className="w-full accent-red-600 h-2 bg-blue-900 rounded-lg appearance-none cursor-pointer"
@@ -171,7 +176,7 @@ export const Controls: React.FC<ControlsProps> = ({
                     <span className="text-xs text-blue-400">{styleConfig.titleSize}px</span>
                 </div>
                 <input 
-                    type="range" min="32" max="100" 
+                    type="range" min="32" max="200" 
                     value={styleConfig.titleSize} 
                     onChange={(e) => handleChange('titleSize', Number(e.target.value))}
                     className="w-full accent-red-600 h-2 bg-blue-900 rounded-lg appearance-none cursor-pointer"
@@ -183,7 +188,7 @@ export const Controls: React.FC<ControlsProps> = ({
                     <span className="text-xs text-blue-400">{styleConfig.bodySize}px</span>
                 </div>
                 <input 
-                    type="range" min="12" max="32" 
+                    type="range" min="10" max="120" 
                     value={styleConfig.bodySize} 
                     onChange={(e) => handleChange('bodySize', Number(e.target.value))}
                     className="w-full accent-red-600 h-2 bg-blue-900 rounded-lg appearance-none cursor-pointer"
@@ -307,47 +312,45 @@ export const Controls: React.FC<ControlsProps> = ({
           className={`w-full py-3 rounded-lg font-bold text-lg transition-all shadow-lg ${
             isGenerating || !inputBody.trim()
               ? 'bg-slate-700 cursor-not-allowed text-slate-400'
-              : 'bg-gradient-to-r from-[#DE2910] to-[#b30000] hover:from-red-600 hover:to-red-800 text-white shadow-red-900/40 ring-1 ring-white/10'
+              : 'bg-gradient-to-r from-[#DE2910] to-[#b30000] hover:from-red-600 hover:to-red-800 text-white shadow-red-900/50'
           }`}
         >
-          {isGenerating ? '正在排版生成...' : '生成正式海报'}
+          {isGenerating ? (
+            <span className="flex items-center justify-center gap-2">
+                <div className="w-5 h-5 border-2 border-white/30 border-t-white rounded-full animate-spin"></div>
+                生成中...
+            </span>
+          ) : '开始生成海报'}
         </button>
     </>
   );
 
   return (
-    <div className="bg-[#111e36] rounded-xl shadow-lg border border-blue-900/50 h-full flex flex-col overflow-hidden">
-        {/* Tab Header */}
-        <div className="flex border-b border-blue-900/50 bg-[#0a1628]">
+    <div className="flex flex-col h-full">
+        {/* Mobile/Tab Switcher */}
+        <div className="flex border-b border-blue-900/50 mb-4">
             <button 
                 onClick={() => setActiveTab('editor')}
-                className={`flex-1 py-3 text-sm font-bold tracking-wide transition-colors ${activeTab === 'editor' ? 'text-white bg-[#111e36] border-b-2 border-red-600' : 'text-blue-400 hover:text-blue-200'}`}
+                className={`flex-1 py-3 text-sm font-bold border-b-2 transition-colors ${activeTab === 'editor' ? 'border-red-600 text-white' : 'border-transparent text-blue-400 hover:text-blue-300'}`}
             >
                 编辑设计
             </button>
             <button 
                 onClick={() => setActiveTab('history')}
-                className={`flex-1 py-3 text-sm font-bold tracking-wide transition-colors ${activeTab === 'history' ? 'text-white bg-[#111e36] border-b-2 border-red-600' : 'text-blue-400 hover:text-blue-200'}`}
+                className={`flex-1 py-3 text-sm font-bold border-b-2 transition-colors ${activeTab === 'history' ? 'border-red-600 text-white' : 'border-transparent text-blue-400 hover:text-blue-300'}`}
             >
                 历史记录
             </button>
         </div>
 
-        {/* Tab Content */}
-        <div className="flex-1 overflow-y-auto p-6 custom-scrollbar">
+        <div className="flex-1 overflow-y-auto custom-scrollbar pr-1">
             {activeTab === 'history' ? (
                 renderHistory()
             ) : (
-                content ? renderPreviewControls() : renderInput()
+                /* FIX: Check STEP first, not just content existence */
+                (step === Step.PREVIEW && content) ? renderPreviewControls() : renderInput()
             )}
         </div>
-        
-        {/* Footer info only shown in editor */}
-        {activeTab === 'editor' && content && (
-            <div className="p-4 border-t border-blue-900/50 bg-[#111e36] text-xs text-blue-500 opacity-60">
-                <p>样式说明: 标准公文风格，强调政治性与严肃性。</p>
-            </div>
-        )}
     </div>
   );
 };

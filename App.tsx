@@ -41,7 +41,6 @@ export const THEMES: PosterTheme[] = [
 ];
 
 export const TEXTURE_STYLES = [
-  { id: 'default', name: '智能推荐' },
   { id: 'clouds', name: '祥云瑞气' },
   { id: 'mountains', name: '巍巍青山' },
   { id: 'bamboo', name: '高风亮节' },
@@ -60,7 +59,7 @@ const DEFAULT_STYLE: PosterStyle = {
   widthScale: 600, // Default width in px
   heightScale: 960, // Default height in px
   theme: THEMES[0],
-  textureStyle: 'default'
+  textureStyle: 'clouds'
 };
 
 function App() {
@@ -91,25 +90,50 @@ function App() {
     if (saved) {
       try {
         const parsed = JSON.parse(saved);
-        // Migration: Ensure all history items have a theme object and textureStyle
-        const migrated = parsed.map((item: any) => ({
-            ...item,
-            styleConfig: {
-                ...item.styleConfig,
-                theme: item.styleConfig.theme || THEMES[0],
-                textureStyle: item.styleConfig.textureStyle || 'default'
+        if (!Array.isArray(parsed)) return;
+
+        // CRITICAL MIGRATION FIX:
+        // Ensure all history items have a valid theme OBJECT, not just a string ID.
+        // If theme is missing or invalid, fallback to default.
+        const migrated = parsed.map((item: any) => {
+            let safeTheme = THEMES[0];
+            
+            // If theme is an object with an ID, try to find the up-to-date theme definition
+            if (item.styleConfig?.theme && typeof item.styleConfig.theme === 'object') {
+                const found = THEMES.find(t => t.id === item.styleConfig.theme.id);
+                if (found) safeTheme = found;
+            } 
+            // If theme is just a string ID (old version), find it
+            else if (typeof item.styleConfig?.theme === 'string') {
+                 const found = THEMES.find(t => t.id === item.styleConfig.theme);
+                 if (found) safeTheme = found;
             }
-        }));
+
+            return {
+                ...item,
+                styleConfig: {
+                    ...(item.styleConfig || DEFAULT_STYLE),
+                    theme: safeTheme,
+                    textureStyle: item.styleConfig?.textureStyle || 'clouds'
+                }
+            };
+        });
         setHistory(migrated);
       } catch (e) {
         console.error("Failed to parse history", e);
+        // If history is corrupt, clear it to prevent persistent crashes
+        localStorage.removeItem('poster_history');
       }
     }
   }, []);
 
   // Save history to local storage whenever it changes
   useEffect(() => {
-    localStorage.setItem('poster_history', JSON.stringify(history));
+    try {
+        localStorage.setItem('poster_history', JSON.stringify(history));
+    } catch (e) {
+        console.error("Failed to save history", e);
+    }
   }, [history]);
 
   const addToHistory = (
@@ -159,7 +183,13 @@ function App() {
     setCurrentId(item.id);
     setInputTitle(item.title);
     setInputBody(item.body);
-    setStyleConfig(item.styleConfig);
+    // Ensure we are loading a styleConfig with a valid theme object
+    // The migration logic on mount should have fixed this, but double check
+    const safeStyle = {
+        ...item.styleConfig,
+        theme: item.styleConfig.theme || THEMES[0]
+    };
+    setStyleConfig(safeStyle);
     setState({
       content: item.content,
       imageUrl: item.imageUrl,
@@ -266,6 +296,7 @@ function App() {
       {/* Left Panel: Controls (NOW MAIN, Flex-1) */}
       <div className="flex-1 min-w-0 p-4 lg:h-screen lg:overflow-y-auto z-20 order-1">
         <Controls 
+          step={step} // Pass the current step status
           inputTitle={inputTitle}
           setInputTitle={setInputTitle}
           inputBody={inputBody}
@@ -307,7 +338,8 @@ function App() {
               style={{ backgroundImage: 'radial-gradient(#1e3a8a 1px, transparent 1px)', backgroundSize: '24px 24px' }}>
          </div>
 
-         {state.content ? (
+         {/* Added Safety Check: Only render Canvas if content AND styleConfig exist */}
+         {state.content && styleConfig ? (
             <PosterCanvas 
                 content={state.content}
                 imageUrl={state.imageUrl}

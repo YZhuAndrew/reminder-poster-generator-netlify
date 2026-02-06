@@ -1,5 +1,5 @@
 import React, { useRef, useState, useLayoutEffect } from 'react';
-import { PosterContent, PosterStyle } from '../types';
+import { PosterContent, PosterStyle, PosterTheme } from '../types';
 
 interface PosterCanvasProps {
   content: PosterContent;
@@ -15,11 +15,17 @@ export const PosterCanvas: React.FC<PosterCanvasProps> = ({
   isGeneratingImage 
 }) => {
   const fontFamilyClass = 'font-serif-sc'; 
-  const footerSize = Math.max(10, Math.round(styleConfig.bodySize * 0.6));
-  const theme = styleConfig.theme; // Short alias
+  const theme = styleConfig.theme || {} as Partial<PosterTheme>; // Fallback to empty object casted to Partial type
+  
+  // Safe accessors
+  const primaryColor = theme.primaryColor || '#DE2910';
+  const secondaryColor = theme.secondaryColor || '#FFFF00';
+  const backgroundColor = theme.backgroundColor || '#FFFBF0';
+  const accentColor = theme.accentColor || '#DE2910';
+
+  const footerSize = Math.max(10, Math.round((styleConfig.bodySize || 16) * 0.6));
   
   // Logical dimensions from config (pixels)
-  // Fallback to reasonable defaults if state was initialized with old values
   const logicalW = styleConfig.widthScale > 100 ? styleConfig.widthScale : 600;
   const logicalH = styleConfig.heightScale > 100 ? styleConfig.heightScale : 960;
 
@@ -30,25 +36,13 @@ export const PosterCanvas: React.FC<PosterCanvasProps> = ({
     const calculateScale = () => {
         if (!containerRef.current) return;
         const parent = containerRef.current;
-        
-        // Available space with some padding
         const availableW = parent.clientWidth - 40; 
         const availableH = parent.clientHeight - 40;
-
         if (availableW <= 0 || availableH <= 0) return;
-
-        // Determine scale needed to fit logical dimensions into available space
         const scaleX = availableW / logicalW;
         const scaleY = availableH / logicalH;
-        
-        // Use the smaller scale to ensure it fits both dimensions (contain)
-        const newScale = Math.min(scaleX, scaleY);
-        
-        // Limit max scale to 1.2 to avoid getting too pixelated if window is huge, 
-        // but allow it to shrink as much as needed.
-        setScale(newScale);
+        setScale(Math.min(scaleX, scaleY));
     };
-
     calculateScale();
     window.addEventListener('resize', calculateScale);
     return () => window.removeEventListener('resize', calculateScale);
@@ -65,7 +59,7 @@ export const PosterCanvas: React.FC<PosterCanvasProps> = ({
             height: `${logicalH}px`,
             transform: `scale(${scale})`,
             transformOrigin: 'center center',
-            backgroundColor: theme.primaryColor // Dynamic primary color
+            backgroundColor: primaryColor 
         }}
       >
         {/* Background Image Layer */}
@@ -80,11 +74,11 @@ export const PosterCanvas: React.FC<PosterCanvasProps> = ({
           <div 
             className="absolute inset-0 z-0 flex items-center justify-center"
             style={{ 
-                background: `linear-gradient(to bottom, ${theme.primaryColor}, #000000)`
+                background: `linear-gradient(to bottom, ${primaryColor}, #000000)`
             }}
           >
              {isGeneratingImage && (
-                <div className="animate-spin w-8 h-8 border-4 border-current border-t-transparent rounded-full" style={{ color: theme.secondaryColor }}></div>
+                <div className="animate-spin w-8 h-8 border-4 border-current border-t-transparent rounded-full" style={{ color: secondaryColor }}></div>
              )}
           </div>
         )}
@@ -98,7 +92,7 @@ export const PosterCanvas: React.FC<PosterCanvasProps> = ({
                     className={`font-black ${fontFamilyClass} text-center`}
                     style={{ 
                         fontSize: `${styleConfig.titleSize}px`,
-                        color: theme.secondaryColor, // Dynamic Title Color
+                        color: secondaryColor,
                         textShadow: '2px 2px 4px rgba(0,0,0,0.5), 0 0 10px rgba(0,0,0,0.2)',
                         fontFamily: '"Noto Serif SC", serif',
                         lineHeight: 1.2,
@@ -112,9 +106,8 @@ export const PosterCanvas: React.FC<PosterCanvasProps> = ({
             {/* 2. White "Paper" Content Box */}
             <div 
                 className="flex-1 w-full rounded-xl shadow-[0_10px_30px_rgba(0,0,0,0.3)] p-8 relative flex flex-col overflow-hidden transition-colors duration-300"
-                style={{ backgroundColor: theme.backgroundColor }} // Dynamic paper color
+                style={{ backgroundColor: backgroundColor }}
             >
-                
                 {/* Scrollable Content Area */}
                 <div className="flex-1 overflow-y-auto pr-2 custom-scrollbar">
                     
@@ -134,8 +127,8 @@ export const PosterCanvas: React.FC<PosterCanvasProps> = ({
                         className={`mt-4 pt-4 border-t text-center font-bold ${fontFamilyClass} flex-shrink-0`} 
                         style={{ 
                             fontSize: `${footerSize}px`,
-                            color: theme.accentColor, // Dynamic footer text
-                            borderColor: `${theme.accentColor}33` // 20% opacity border
+                            color: accentColor, 
+                            borderColor: `${accentColor}33`
                         }}
                     >
                         {content.footer}
@@ -180,15 +173,46 @@ export const PosterCanvas: React.FC<PosterCanvasProps> = ({
           background: transparent;
         }
         .custom-scrollbar::-webkit-scrollbar-thumb {
-          background: ${theme.accentColor};
+          background: ${accentColor};
           border-radius: 4px;
           opacity: 0.2;
         }
+
+        /* 
+           CRITICAL FIX for Body Size Slider:
+           Force all generic text elements to inherit the font-size set on the parent .rich-text-content div.
+           This overrides browser defaults and any inline styles that might have been pasted in.
+        */
+        .rich-text-content * {
+            font-size: inherit !important;
+            line-height: inherit;
+        }
+
+        /* Re-establish relative sizing for Headers so they scale PROPORTIONALLY to the slider */
+        .rich-text-content h2 {
+            font-size: 2em !important;
+            line-height: 1.3;
+            margin-top: 0.8em;
+            margin-bottom: 0.4em;
+            font-weight: 900;
+            color: ${accentColor};
+        }
+        .rich-text-content h3 {
+            font-size: 1.5em !important;
+            line-height: 1.3;
+            margin-top: 0.6em;
+            margin-bottom: 0.3em;
+            font-weight: 800;
+        }
+        
         .rich-text-content p {
-            margin-bottom: 0.5em;
+            margin-bottom: 0.8em;
         }
         .rich-text-content b, .rich-text-content strong {
             font-weight: 900;
+        }
+        .rich-text-content ul, .rich-text-content ol {
+            margin-bottom: 0.8em;
         }
       `}</style>
     </div>

@@ -5,7 +5,7 @@ import { PosterContent, PosterTheme } from "../types";
 const getAI = () => {
   const apiKey = process.env.API_KEY;
   if (!apiKey) {
-    throw new Error("API Key is missing. Please set API_KEY in your environment variables.");
+    throw new Error("API Key is missing. If you are on Vercel: 1. Go to Settings > Environment Variables. 2. Add API_KEY. 3. Go to Deployments and REDEPLOY.");
   }
   return new GoogleGenAI({ apiKey });
 };
@@ -67,12 +67,12 @@ export const analyzeWarningText = async (title: string, bodyHtml: string): Promi
 /**
  * Generates an image based on the prompt.
  */
-export const generatePosterBackground = async (prompt: string, theme: PosterTheme, textureStyle: string = 'default'): Promise<string> => {
+export const generatePosterBackground = async (prompt: string, theme: PosterTheme, textureStyle: string = 'clouds'): Promise<string> => {
   const model = 'gemini-2.5-flash-image';
 
   try {
     const ai = getAI();
-    let styleKeywords = "subtle patterns, minimal, solemn";
+    let styleKeywords = "traditional chinese xiangyun cloud pattern, auspicious clouds, floating aesthetics";
     
     switch (textureStyle) {
         case 'clouds':
@@ -94,7 +94,7 @@ export const generatePosterBackground = async (prompt: string, theme: PosterThem
             styleKeywords = "city skyline silhouette, modern urban background, digital connection";
             break;
         default:
-            // 'default' uses the original AI prompt more heavily + subtle default
+            // Fallback
             styleKeywords = "official document background, subtle decorative border";
             break;
     }
