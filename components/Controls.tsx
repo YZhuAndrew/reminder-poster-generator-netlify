@@ -301,7 +301,7 @@ export const Controls: React.FC<ControlsProps> = ({
                   value={inputBody}
                   onChange={(html) => setInputBody(html)}
                   placeholder="请输入正文内容..."
-                  className="w-full h-64"
+                  className="w-full"
                 />
             </div>
         </div>

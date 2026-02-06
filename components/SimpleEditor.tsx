@@ -129,13 +129,14 @@ export const SimpleEditor: React.FC<SimpleEditorProps> = ({ value, onChange, pla
       </div>
 
       {/* Editable Area */}
-      <div className="relative flex-1 overflow-hidden">
+      <div className="relative group">
         <div
             ref={contentRef}
             contentEditable
             onInput={handleInput}
             // Use 'prose' (Tailwind Typography) conceptual styles here to match the poster feel
-            className="w-full h-full p-4 text-slate-900 font-serif-sc focus:outline-none overflow-y-auto leading-relaxed [&_ul]:list-disc [&_ul]:pl-5 [&_ol]:list-decimal [&_ol]:pl-5 [&_h2]:text-2xl [&_h2]:font-bold [&_h2]:my-2 [&_h2]:text-[#DE2910] [&_h3]:text-xl [&_h3]:font-bold [&_h3]:my-1"
+            // Removed: h-full, overflow-y-auto to allow growth
+            className="w-full p-4 text-slate-900 font-serif-sc focus:outline-none leading-relaxed [&_ul]:list-disc [&_ul]:pl-5 [&_ol]:list-decimal [&_ol]:pl-5 [&_h2]:text-2xl [&_h2]:font-bold [&_h2]:my-2 [&_h2]:text-[#DE2910] [&_h3]:text-xl [&_h3]:font-bold [&_h3]:my-1"
             style={{ minHeight: '200px' }}
         />
         {value === '' && (

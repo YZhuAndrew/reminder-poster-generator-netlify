@@ -127,12 +127,46 @@ function App() {
     }
   }, []);
 
-  // Save history to local storage whenever it changes
+  // Save history to local storage whenever it changes, with quota management
   useEffect(() => {
-    try {
-        localStorage.setItem('poster_history', JSON.stringify(history));
-    } catch (e) {
-        console.error("Failed to save history", e);
+    const saveWithQuotaManagement = (items: HistoryItem[]) => {
+      try {
+        localStorage.setItem('poster_history', JSON.stringify(items));
+      } catch (e: any) {
+        // Handle QuotaExceededError (name varies by browser)
+        if (
+          e.name === 'QuotaExceededError' || 
+          e.name === 'NS_ERROR_DOM_QUOTA_REACHED' || 
+          e.code === 22
+        ) {
+          console.warn("LocalStorage quota exceeded. Trimming history to fit.");
+          
+          if (items.length === 0) return;
+
+          // Create a copy to modify
+          const newItems = [...items];
+          
+          // Strategy: Find the oldest item (last in array)
+          const oldestIndex = newItems.length - 1;
+          const oldestItem = newItems[oldestIndex];
+
+          // If the oldest item has an image, strip it first (user can regenerate)
+          if (oldestItem.imageUrl) {
+            newItems[oldestIndex] = { ...oldestItem, imageUrl: null };
+            saveWithQuotaManagement(newItems); // Retry with stripped image
+          } else {
+            // If it has no image, remove the item entirely
+            newItems.pop();
+            saveWithQuotaManagement(newItems); // Retry with fewer items
+          }
+        } else {
+          console.error("Failed to save history", e);
+        }
+      }
+    };
+
+    if (history.length > 0) {
+      saveWithQuotaManagement(history);
     }
   }, [history]);
 
@@ -166,8 +200,8 @@ function App() {
         imageUrl,
         styleConfig: style
       };
-      // Add to top, keep max 20 items
-      setHistory(prev => [newItem, ...prev].slice(0, 20));
+      // Add to top, keep max 10 items (reduced from 20 to prevent rapid quota usage)
+      setHistory(prev => [newItem, ...prev].slice(0, 10));
       setCurrentId(id);
     }
   };
@@ -192,7 +226,7 @@ function App() {
     setStyleConfig(safeStyle);
     setState({
       content: item.content,
-      imageUrl: item.imageUrl,
+      imageUrl: item.imageUrl, // Might be null if stripped, Canvas handles this
       isGeneratingText: false,
       isGeneratingImage: false,
       error: null
