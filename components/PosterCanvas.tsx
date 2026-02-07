@@ -2,17 +2,21 @@ import React, { useRef, useState, useLayoutEffect } from 'react';
 import { PosterContent, PosterStyle, PosterTheme } from '../types';
 
 interface PosterCanvasProps {
+  id?: string;
   content: PosterContent;
   imageUrl: string | null;
   styleConfig: PosterStyle;
   isGeneratingImage: boolean;
+  onClick?: () => void;
 }
 
 export const PosterCanvas: React.FC<PosterCanvasProps> = ({ 
+  id = "poster-capture-area",
   content, 
   imageUrl, 
   styleConfig, 
-  isGeneratingImage 
+  isGeneratingImage,
+  onClick
 }) => {
   const fontFamilyClass = 'font-serif-sc'; 
   const theme = styleConfig.theme || {} as Partial<PosterTheme>; // Fallback to empty object casted to Partial type
@@ -187,8 +191,9 @@ export const PosterCanvas: React.FC<PosterCanvasProps> = ({
   return (
     <div ref={containerRef} className="w-full h-full flex items-center justify-center overflow-hidden">
       <div 
-        id="poster-capture-area"
-        className="relative shadow-2xl overflow-hidden text-black flex-shrink-0 transition-[width,height,background-color] duration-200 ease-out"
+        id={id}
+        onClick={onClick}
+        className={`relative shadow-2xl overflow-hidden text-black flex-shrink-0 transition-[width,height,background-color] duration-200 ease-out ${onClick ? 'cursor-zoom-in hover:shadow-emerald-500/20' : ''}`}
         style={{ 
             boxShadow: '0 25px 50px -12px rgba(0, 0, 0, 0.5)',
             width: `${logicalW}px`,

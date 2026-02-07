@@ -86,6 +86,9 @@ function App() {
     error: null,
   });
 
+  // UI State
+  const [isZoomed, setIsZoomed] = useState(false);
+
   // Visual Style Config
   const [styleConfig, setStyleConfig] = useState<PosterStyle>(DEFAULT_STYLE);
 
@@ -366,10 +369,12 @@ function App() {
          {/* If no content, on Desktop we show placeholder. On Mobile height is 0 so it's hidden. */}
          {state.content && styleConfig ? (
             <PosterCanvas 
+                id="poster-capture-area"
                 content={state.content}
                 imageUrl={state.imageUrl}
                 styleConfig={styleConfig}
                 isGeneratingImage={state.isGeneratingImage}
+                onClick={() => setIsZoomed(true)}
             />
          ) : (
             <div className="text-center opacity-40 px-4">
@@ -423,6 +428,41 @@ function App() {
             </div>
         )}
       </div>
+
+      {/* FULL SCREEN ZOOM MODAL */}
+      {isZoomed && state.content && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 lg:p-10">
+            {/* Backdrop */}
+            <div 
+                className="absolute inset-0 bg-black/90 backdrop-blur-sm"
+                onClick={() => setIsZoomed(false)}
+            ></div>
+            
+            {/* Modal Content */}
+            <div className="relative w-full h-full flex flex-col items-center justify-center pointer-events-none">
+                {/* Close Button */}
+                <button 
+                    onClick={() => setIsZoomed(false)}
+                    className="absolute top-0 right-0 lg:top-4 lg:right-4 z-50 p-2 text-white/70 hover:text-white bg-black/50 hover:bg-black/80 rounded-full transition-colors pointer-events-auto"
+                >
+                     <svg className="w-8 h-8" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+                    </svg>
+                </button>
+
+                {/* Scaled Poster */}
+                <div className="w-full h-full pointer-events-auto" onClick={(e) => e.stopPropagation()}>
+                    <PosterCanvas 
+                        id="poster-zoom-view" // Diff ID so we don't conflict with download
+                        content={state.content}
+                        imageUrl={state.imageUrl}
+                        styleConfig={styleConfig}
+                        isGeneratingImage={state.isGeneratingImage}
+                    />
+                </div>
+            </div>
+        </div>
+      )}
 
     </div>
   );
