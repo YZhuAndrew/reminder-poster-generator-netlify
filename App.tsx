@@ -289,13 +289,18 @@ function App() {
       setStep(Step.PREVIEW);
       addToHistory(inputTitle, inputBody, content, null, styleConfig, null);
 
-    } catch (error) {
+    } catch (error: any) {
       console.error(error);
+      const errorMsg = error.message || "未知错误";
+      
+      // Explicit Alert for Mobile Users who might not see the error div
+      alert(`生成失败: ${errorMsg}`);
+
       setState(prev => ({ 
         ...prev, 
         isGeneratingText: false, 
         isGeneratingImage: false, 
-        error: "Failed to generate content. Please try again." 
+        error: errorMsg 
       }));
     }
   };
@@ -305,12 +310,20 @@ function App() {
     setState(prev => ({ ...prev, isGeneratingImage: true }));
     try {
       const imageUrl = await generatePosterBackground(state.content.imagePrompt + ` variant ${Date.now()}`, styleConfig.theme, styleConfig.textureStyle);
+      
+      // If null returned (e.g. quota limit), handle gracefully
+      if (!imageUrl) {
+         // If specifically caused by timeout inside generatePosterBackground, it might throw, so we catch below.
+         // But if it returned null (fallback), we just stop spinner.
+      }
+      
       setState(prev => ({ ...prev, imageUrl, isGeneratingImage: false }));
       
-      if (currentId) {
+      if (currentId && imageUrl) {
           addToHistory(inputTitle, inputBody, state.content, imageUrl, styleConfig, currentId);
       }
-    } catch (error) {
+    } catch (error: any) {
+       alert(`绘图失败: ${error.message}`);
        setState(prev => ({ ...prev, isGeneratingImage: false }));
     }
   };

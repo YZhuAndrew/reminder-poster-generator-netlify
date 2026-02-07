@@ -1,13 +1,35 @@
-import { GoogleGenAI, Type } from "@google/genai";
+import { GoogleGenAI, Type, GenerateContentResponse } from "@google/genai";
 import { PosterContent, PosterTheme } from "../types";
 
 // Helper to get AI instance safely
 const getAI = () => {
+  // Vite replaces process.env.API_KEY with the actual string during build
   const apiKey = process.env.API_KEY;
-  if (!apiKey) {
-    throw new Error("API Key is missing. If you are on Vercel: 1. Go to Settings > Environment Variables. 2. Add API_KEY. 3. Go to Deployments and REDEPLOY.");
+  
+  // Check for various "missing" states: undefined, null, empty string, or literal "undefined" string
+  if (!apiKey || apiKey === '""' || apiKey === "undefined" || apiKey.length < 5) {
+    throw new Error("API Key 配置缺失。请在 Vercel 设置中添加 API_KEY 环境变量并重新部署。");
   }
   return new GoogleGenAI({ apiKey });
+};
+
+// Timeout helper: forces a promise to reject after X milliseconds
+const withTimeout = <T>(promise: Promise<T>, ms: number, errorMessage: string): Promise<T> => {
+    return new Promise((resolve, reject) => {
+        const timer = setTimeout(() => {
+            reject(new Error(errorMessage));
+        }, ms);
+
+        promise
+            .then((res) => {
+                clearTimeout(timer);
+                resolve(res);
+            })
+            .catch((err) => {
+                clearTimeout(timer);
+                reject(err);
+            });
+    });
 };
 
 /**
@@ -17,51 +39,59 @@ export const analyzeWarningText = async (title: string, bodyHtml: string): Promi
   const ai = getAI();
   const model = 'gemini-3-flash-preview';
   
-  // Extract plain text for context (simple regex to strip tags for the prompt)
   const plainBodyText = bodyHtml.replace(/<[^>]*>/g, ' ');
 
-  const response = await ai.models.generateContent({
-    model,
-    contents: `You are a formatting assistant for official posters.
-    
-    Task: Extract metadata for a poster.
-    
-    Input Title: "${title}"
-    Input Body (Context): "${plainBodyText.substring(0, 1000)}"
-    
-    Structure Requirements:
-    - footer: Check if the Input Body ends with a salutation, date, or department name (e.g., "XX宣", "2024年X月"). If so, extract it. Otherwise, return empty string.
-    - imagePrompt: Generate a prompt for a background texture that matches the content mood (e.g. serious, celebratory, warning). Keep it abstract and minimal.
-    - suggestedColor: "#DE2910".
-    
-    Note: DO NOT return the body text. We will use the original HTML provided by the user.
-    `,
-    config: {
-      responseMimeType: "application/json",
-      responseSchema: {
-        type: Type.OBJECT,
-        properties: {
-          footer: { type: Type.STRING },
-          imagePrompt: { type: Type.STRING },
-          suggestedColor: { type: Type.STRING },
-        },
-        required: ["footer", "imagePrompt", "suggestedColor"],
-      },
-    },
-  });
+  try {
+      const response = await withTimeout<GenerateContentResponse>(
+          ai.models.generateContent({
+            model,
+            contents: `You are a formatting assistant for official posters.
+            
+            Task: Extract metadata for a poster.
+            
+            Input Title: "${title}"
+            Input Body (Context): "${plainBodyText.substring(0, 1000)}"
+            
+            Structure Requirements:
+            - footer: Check if the Input Body ends with a salutation, date, or department name (e.g., "XX宣", "2024年X月"). If so, extract it. Otherwise, return empty string.
+            - imagePrompt: Generate a prompt for a background texture that matches the content mood (e.g. serious, celebratory, warning). Keep it abstract and minimal.
+            - suggestedColor: "#DE2910".
+            
+            Note: DO NOT return the body text. We will use the original HTML provided by the user.
+            `,
+            config: {
+              responseMimeType: "application/json",
+              responseSchema: {
+                type: Type.OBJECT,
+                properties: {
+                  footer: { type: Type.STRING },
+                  imagePrompt: { type: Type.STRING },
+                  suggestedColor: { type: Type.STRING },
+                },
+                required: ["footer", "imagePrompt", "suggestedColor"],
+              },
+            },
+          }),
+          30000, // 30 seconds timeout for text generation
+          "请求超时。请检查网络连接（如是否开启 VPN）或稍后重试。"
+      );
 
-  const text = response.text;
-  if (!text) throw new Error("No response from Gemini Text Model");
-  
-  const result = JSON.parse(text);
+      const text = response.text;
+      if (!text) throw new Error("AI 返回内容为空，请重试。");
+      
+      const result = JSON.parse(text);
 
-  return {
-    headline: title,
-    bodyText: bodyHtml, // Use original HTML to preserve formatting
-    footer: result.footer,
-    imagePrompt: result.imagePrompt,
-    suggestedColor: result.suggestedColor
-  };
+      return {
+        headline: title,
+        bodyText: bodyHtml, 
+        footer: result.footer,
+        imagePrompt: result.imagePrompt,
+        suggestedColor: result.suggestedColor
+      };
+  } catch (error: any) {
+      console.error("Text Gen Error:", error);
+      throw new Error(error.message || "生成失败，请检查网络或 API Key");
+  }
 };
 
 /**
@@ -94,13 +124,10 @@ export const generatePosterBackground = async (prompt: string, theme: PosterThem
             styleKeywords = "city skyline silhouette, modern urban background, digital connection";
             break;
         default:
-            // Fallback
             styleKeywords = "official document background, subtle decorative border";
             break;
     }
 
-    // Combine theme colors with the style
-    // We emphasize the primary color as the main tone
     const colorPrompt = `${theme.name} theme colors, strictly using ${theme.primaryColor} as base and ${theme.secondaryColor} as accent`;
     
     const enhancedPrompt = `High quality background texture for a poster. 
@@ -109,16 +136,19 @@ export const generatePosterBackground = async (prompt: string, theme: PosterThem
     Context: ${prompt}.
     Aesthetics: Clean gradient, no text, 8k resolution, professional, watermark free.`;
     
-    const response = await ai.models.generateContent({
-      model,
-      contents: {
-        parts: [
-          { text: enhancedPrompt }
-        ]
-      },
-    });
+    const response = await withTimeout<GenerateContentResponse>(
+        ai.models.generateContent({
+          model,
+          contents: {
+            parts: [
+              { text: enhancedPrompt }
+            ]
+          },
+        }),
+        45000, // 45 seconds timeout for image generation (slower)
+        "绘图请求超时。请稍后重试。"
+    );
 
-    // Iterate to find the inline image data
     if (response.candidates?.[0]?.content?.parts) {
         for (const part of response.candidates[0].content.parts) {
             if (part.inlineData && part.inlineData.data) {
@@ -135,11 +165,16 @@ export const generatePosterBackground = async (prompt: string, theme: PosterThem
     // Graceful handling of Quota limits (429)
     if (error.status === 429 || error.code === 429 || error.message?.includes('429') || error.message?.includes('quota')) {
          console.warn("Image generation skipped due to API quota limits (429). Using CSS fallback.");
-         return null;
+         // Throw specific error for UI to handle if needed, or return null to fallback silently
+         return null; 
+    }
+    
+    // Allow UI to show specific timeout messages
+    if (error.message.includes('超时')) {
+        throw error;
     }
 
     console.error("Image gen error", error);
-    // Return null to allow UI to fallback to CSS pattern
     return null;
   }
 };
