@@ -17,7 +17,7 @@ interface ControlsProps {
   setStyleConfig: React.Dispatch<React.SetStateAction<PosterStyle>>;
   content: PosterContent | null;
   onRegenerateImage: () => void;
-  onClearImage: () => void; // New prop to clear AI image
+  onClearImage: () => void;
   isGeneratingImage: boolean;
   onBackToEdit: () => void;
 
@@ -61,7 +61,6 @@ export const Controls: React.FC<ControlsProps> = ({
   availableTextures
 }) => {
   const [activeTab, setActiveTab] = useState<'editor' | 'history'>('editor');
-  const [genCode, setGenCode] = useState(''); // State for the generation code
 
   const handleChange = (key: keyof PosterStyle, value: any) => {
     setStyleConfig(prev => ({ ...prev, [key]: value }));
@@ -271,59 +270,10 @@ export const Controls: React.FC<ControlsProps> = ({
                 </button>
             ))}
          </div>
-         <p className="text-[10px] text-blue-400 mt-1">切换纹理将重置为默认图案。如需 AI 绘图请点击下方智能生成。</p>
       </div>
 
        {/* Actions */}
        <div className="pt-4 border-t border-blue-900/50 space-y-3">
-            {/* Gen Code Input */}
-            <div className="relative">
-                <input 
-                    type="password"
-                    value={genCode}
-                    onChange={(e) => setGenCode(e.target.value)}
-                    placeholder="输入生成码以启用 AI 绘图"
-                    className="w-full bg-[#050C1A] border border-blue-800 rounded px-3 py-2 text-sm text-blue-200 placeholder-blue-700 focus:border-red-500 focus:outline-none transition-colors"
-                />
-                {genCode !== 'hfsw' && genCode.length > 0 && (
-                     <div className="absolute right-2 top-1/2 -translate-y-1/2 text-red-500">
-                        <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" /></svg>
-                     </div>
-                )}
-                {genCode === 'hfsw' && (
-                     <div className="absolute right-2 top-1/2 -translate-y-1/2 text-green-500">
-                        <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" /></svg>
-                     </div>
-                )}
-            </div>
-
-            <button 
-                onClick={() => {
-                    if (genCode === 'hfsw') {
-                        onRegenerateImage();
-                    } else {
-                        alert('生成码错误！默认生成码为 hfsw');
-                    }
-                }}
-                disabled={isGeneratingImage}
-                className={`w-full py-3 rounded-lg text-sm font-bold transition-all shadow-lg flex items-center justify-center gap-2 ${
-                    isGeneratingImage 
-                    ? 'bg-slate-700 cursor-not-allowed text-slate-400' 
-                    : 'bg-gradient-to-r from-purple-600 to-indigo-600 hover:from-purple-500 hover:to-indigo-500 text-white'
-                }`}
-            >
-                {isGeneratingImage ? (
-                    <>
-                        <div className="w-4 h-4 border-2 border-white/30 border-t-white rounded-full animate-spin"></div>
-                        AI 绘制中...
-                    </>
-                ) : (
-                    <>
-                        <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19.428 15.428a2 2 0 00-1.022-.547l-2.387-.477a6 6 0 00-3.86.517l-.318.158a6 6 0 01-3.86.517L6.05 15.21a2 2 0 00-1.806.547M8 4h8l-1 1v5.172a2 2 0 00.586 1.414l5 5c1.26 1.26.367 3.414-1.415 3.414H4.828c-1.782 0-2.674-2.154-1.414-3.414l5-5A2 2 0 009 10.172V5L8 4z" /></svg>
-                        智能生成背景 (AI)
-                    </>
-                )}
-            </button>
             <button 
                 onClick={onSave}
                 className="w-full py-2 bg-blue-900 text-blue-100 hover:bg-blue-800 rounded-lg text-sm font-medium transition-colors border border-blue-700"

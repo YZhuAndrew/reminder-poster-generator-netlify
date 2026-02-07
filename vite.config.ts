@@ -6,19 +6,19 @@ export default defineConfig(({ mode }) => {
   // Load env file based on `mode` in the current working directory.
   const env = loadEnv(mode, (process as any).cwd(), '');
 
-  // CRITICAL: Vercel injects variables into process.env.
-  // We check multiple sources to ensure we capture the key regardless of how it was named or loaded.
-  // 1. env.API_KEY (Loaded by Vite from .env files)
-  // 2. process.env.API_KEY (System env var, e.g. Vercel Settings)
-  // 3. VITE_ prefixed versions as fallbacks
+  // 1. Capture API Key
   const apiKey = env.API_KEY || process.env.API_KEY || env.VITE_API_KEY || process.env.VITE_API_KEY;
   
+  // 2. Capture Optional Base URL (For Proxying Google API in China)
+  // Example: https://my-openai-proxy.com/google/v1beta
+  const apiBaseUrl = env.API_BASE_URL || process.env.API_BASE_URL || env.VITE_API_BASE_URL || process.env.VITE_API_BASE_URL;
+
   return {
     plugins: [react()],
     define: {
-      // Polyfill process.env.API_KEY so the existing code works.
-      // If apiKey is undefined, use empty string to avoid "undefined" being injected as code.
-      'process.env.API_KEY': JSON.stringify(apiKey || '')
+      // Polyfill process.env for the client-side code
+      'process.env.API_KEY': JSON.stringify(apiKey || ''),
+      'process.env.API_BASE_URL': JSON.stringify(apiBaseUrl || '')
     }
   };
 });
