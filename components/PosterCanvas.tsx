@@ -291,25 +291,16 @@ export const PosterCanvas: React.FC<PosterCanvasProps> = ({
                 {styleConfig.showSeal && (
                 <div className="absolute bottom-6 right-6 z-30 transform rotate-[-5deg] pointer-events-none">
                      <div className="w-24 h-24 relative transition-all duration-300">
-                        <svg viewBox="0 0 200 200" className="w-full h-full drop-shadow-sm">
-                            <defs>
-                                <filter id="stampNoise">
-                                    <feTurbulence type="fractalNoise" baseFrequency="0.6" numOctaves="3" stitchTiles="stitch" />
-                                    <feColorMatrix type="matrix" values="0 0 0 0 0  0 0 0 0 0  0 0 0 0 0  0 0 0 20 -10" />
-                                    <feComposite operator="in" in2="SourceGraphic" />
-                                </filter>
-                                <mask id="grungeMask">
-                                    <rect width="100%" height="100%" fill="white" />
-                                    <rect width="100%" height="100%" fill="black" filter="url(#stampNoise)" opacity="0.4" />
-                                </mask>
-                            </defs>
-                            
-                            <g mask="url(#grungeMask)">
-                                {/* Use rgba instead of mix-blend-mode for broader compatibility (html2canvas) */}
-                                <rect x="10" y="10" width="180" height="180" rx="25" ry="25" fill="rgba(216, 30, 6, 0.75)" />
-                                <rect x="20" y="20" width="160" height="160" rx="18" fill="none" stroke="rgba(255,255,255,0.3)" strokeWidth="2" strokeDasharray="10 5" />
-                                <text x="100" y="92" textAnchor="middle" fill="white" fontFamily="'Noto Serif SC', serif" fontWeight="900" fontSize="60" letterSpacing="6">横税</text>
-                                <text x="100" y="165" textAnchor="middle" fill="white" fontFamily="'Noto Serif SC', serif" fontWeight="900" fontSize="60" letterSpacing="6">纪检</text>
+                        {/* Simplified SVG to avoid 'insecure operation' errors in Safari/html2canvas */}
+                        <svg viewBox="0 0 200 200" className="w-full h-full drop-shadow-sm" style={{ opacity: 0.85 }}>
+                            <g>
+                                {/* Main Red Box */}
+                                <rect x="10" y="10" width="180" height="180" rx="25" ry="25" fill="#D81E06" />
+                                {/* Inner Dashed Border */}
+                                <rect x="20" y="20" width="160" height="160" rx="18" fill="none" stroke="rgba(255,255,255,0.4)" strokeWidth="4" strokeDasharray="12 8" />
+                                {/* Text */}
+                                <text x="100" y="90" textAnchor="middle" fill="white" fontFamily="'Noto Serif SC', serif" fontWeight="900" fontSize="60" letterSpacing="10">横税</text>
+                                <text x="100" y="160" textAnchor="middle" fill="white" fontFamily="'Noto Serif SC', serif" fontWeight="900" fontSize="60" letterSpacing="10">纪检</text>
                             </g>
                         </svg>
                      </div>

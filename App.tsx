@@ -50,6 +50,7 @@ export const TEXTURE_STYLES = [
 ];
 
 export const FONT_OPTIONS = [
+  { id: 'xbs', name: '小标宋', value: '"FZXiaoBiaoSong-B05S", "方正小标宋简体", "FZXiaoBiaoSong", "Songti SC", serif' },
   { id: 'song', name: '标准宋体', value: '"Noto Serif SC", "SimSun", "Songti SC", serif' },
   { id: 'hei', name: '现代黑体', value: '"Noto Sans SC", "SimHei", "Heiti SC", sans-serif' },
   { id: 'kai', name: '传统楷体', value: '"KaiTi", "STKaiti", "Ma Shan Zheng", serif' },
