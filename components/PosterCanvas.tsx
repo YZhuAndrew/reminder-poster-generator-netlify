@@ -71,39 +71,28 @@ export const PosterCanvas: React.FC<PosterCanvasProps> = ({
   }, [logicalW, logicalH]);
 
   // --- Background Pattern Renderers ---
+  // REMOVED commonOverlay (noise texture with blend mode) to fix iOS Safari "Operation Insecure" error.
   const renderBackgroundPattern = () => {
-      // Common opacity layer for texture
-      const commonOverlay = (
-        <div className="absolute inset-0 opacity-10 mix-blend-overlay pointer-events-none z-0"
-            style={{
-                filter: 'contrast(120%) brightness(120%)',
-                backgroundImage: 'url("data:image/svg+xml;base64,PHN2ZyB4bWxucz0naHR0cDovL3d3dy53My5vcmcvMjAwMC9zdmcnIHdpZHRoPSc0JyBoZWlnaHQ9JzQnPgo8cmVjdCB3aWR0aD0nNCcgaGVpZ2h0PSc0JyBmaWxsPScjZmZmJy8+CjxyZWN0IHdpZHRoPScxJyBoZWlnaHQ9JzEnIGZpbGw9JyNjY2MnLz4KPC9zdmc+")'
-            }}
-        ></div>
-      );
-
       switch (styleConfig.textureStyle) {
         case 'clouds':
             return (
                 <>
-                    <div className="absolute inset-0 opacity-20 pointer-events-none" 
+                    {/* Replaced filter:blur with simpler gradients for safety */}
+                    <div className="absolute inset-0 opacity-30 pointer-events-none" 
                         style={{
                             backgroundImage: `
-                                radial-gradient(circle at 10% 20%, ${secondaryColor} 0%, transparent 20%),
-                                radial-gradient(circle at 90% 80%, ${secondaryColor} 0%, transparent 20%),
-                                radial-gradient(circle at 50% 50%, white 0%, transparent 40%)
-                            `,
-                            filter: 'blur(40px)'
+                                radial-gradient(circle at 20% 20%, ${secondaryColor} 0%, transparent 40%),
+                                radial-gradient(circle at 80% 80%, ${secondaryColor} 0%, transparent 40%)
+                            `
                         }}
                     ></div>
-                    {/* SVG Cloud Pattern */}
+                    {/* Simple SVG Cloud Pattern without cross-origin risks */}
                     <div className="absolute inset-0 opacity-10 pointer-events-none"
                         style={{
                             backgroundImage: `url("data:image/svg+xml,%3Csvg width='60' height='60' viewBox='0 0 60 60' xmlns='http://www.w3.org/2000/svg'%3E%3Cpath d='M30 30c0-5.5 4.5-10 10-10s10 4.5 10 10c0 5.5-4.5 10-10 10s-10-4.5-10-10z' fill='white' fill-opacity='0.4'/%3E%3Cpath d='M10 10c0-5.5 4.5-10 10-10s10 4.5 10 10c0 5.5-4.5 10-10 10S10 15.5 10 10z' fill='white' fill-opacity='0.4'/%3E%3C/svg%3E")`,
                             backgroundSize: '120px 120px'
                         }}
                     ></div>
-                    {commonOverlay}
                 </>
             );
         case 'mountains':
@@ -119,7 +108,6 @@ export const PosterCanvas: React.FC<PosterCanvasProps> = ({
                          <path d="M40 100 L70 50 L100 100 Z" fill="white" />
                          <path d="M-20 100 L20 70 L60 100 Z" fill="white" opacity="0.7"/>
                     </svg>
-                    {commonOverlay}
                 </>
             );
         case 'bamboo':
@@ -136,7 +124,6 @@ export const PosterCanvas: React.FC<PosterCanvasProps> = ({
                          <path d="M60 100 Q 65 60 60 10" stroke="white" strokeWidth="1.5" fill="none" />
                          <path d="M80 80 L90 75 M80 60 L70 55 M60 40 L50 35" stroke="white" strokeWidth="1" fill="none" />
                     </svg>
-                    {commonOverlay}
                 </>
              );
         case 'geometric':
@@ -150,7 +137,6 @@ export const PosterCanvas: React.FC<PosterCanvasProps> = ({
                         }}
                      ></div>
                      <div className="absolute inset-0 opacity-30 bg-gradient-to-br from-transparent via-transparent to-black pointer-events-none"></div>
-                     {commonOverlay}
                 </>
             );
         case 'city':
@@ -170,7 +156,6 @@ export const PosterCanvas: React.FC<PosterCanvasProps> = ({
                          <div className="w-[8%] h-[40%] bg-white"></div>
                          <div className="w-[10%] h-[85%] bg-white"></div>
                     </div>
-                    {commonOverlay}
                 </>
              );
         default: // paper or default
@@ -182,7 +167,6 @@ export const PosterCanvas: React.FC<PosterCanvasProps> = ({
                             backgroundSize: '30px 30px' 
                          }} 
                     ></div>
-                    {commonOverlay}
                 </>
              );
       }
