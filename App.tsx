@@ -311,12 +311,6 @@ function App() {
     try {
       const imageUrl = await generatePosterBackground(state.content.imagePrompt + ` variant ${Date.now()}`, styleConfig.theme, styleConfig.textureStyle);
       
-      // If null returned (e.g. quota limit), handle gracefully
-      if (!imageUrl) {
-         // If specifically caused by timeout inside generatePosterBackground, it might throw, so we catch below.
-         // But if it returned null (fallback), we just stop spinner.
-      }
-      
       setState(prev => ({ ...prev, imageUrl, isGeneratingImage: false }));
       
       if (currentId && imageUrl) {
@@ -330,22 +324,61 @@ function App() {
 
   const handleDownloadImage = async () => {
     const element = document.getElementById('poster-capture-area');
-    if (!element) return;
+    if (!element) {
+        alert("找不到海报内容，无法下载");
+        return;
+    }
 
     try {
+        // Calculate safe scale logic for Mobile Safari memory limits
+        const w = styleConfig.widthScale;
+        const h = styleConfig.heightScale;
+        let targetScale = 2; // Default High Res
+        
+        // Safety check: iOS Safari canvas limit (approx 16MP, but lower is safer for processing)
+        const totalPixels = (w * 2) * (h * 2);
+        if (totalPixels > 6000000) { // If > 6MP, reduce scale
+            targetScale = 1.5;
+        }
+        if (totalPixels > 10000000) { // If > 10MP, use 1:1
+            targetScale = 1;
+        }
+
         const canvas = await html2canvas(element, {
-            scale: 2, 
+            scale: targetScale, 
             useCORS: true, 
             backgroundColor: null,
+            logging: false,
+            // CRITICAL FIX: Reset transforms on the clone. 
+            // The original element is scaled via CSS transform for preview fitting.
+            // We must capture it at 100% scale (none) to get the correct resolution.
+            onclone: (clonedDoc) => {
+                const el = clonedDoc.getElementById('poster-capture-area');
+                if (el) {
+                    el.style.transform = 'none';
+                    el.style.margin = '0';
+                    el.style.boxShadow = 'none'; // Optional: cleaner edge
+                }
+            }
         });
+
+        const dataUrl = canvas.toDataURL('image/png');
+        
+        // Check for empty canvas
+        if (dataUrl === 'data:,') throw new Error("Canvas data is empty");
 
         const link = document.createElement('a');
         link.download = `poster-${Date.now()}.png`;
-        link.href = canvas.toDataURL('image/png');
+        link.href = dataUrl;
+        
+        // Append to body is required for some mobile browsers to trigger click
+        document.body.appendChild(link);
         link.click();
-    } catch (err) {
+        document.body.removeChild(link);
+
+    } catch (err: any) {
         console.error("Download failed", err);
-        alert("下载图片失败，请重试");
+        alert(`下载图片失败: ${err.message || "请稍后重试"}`);
     }
   };
 

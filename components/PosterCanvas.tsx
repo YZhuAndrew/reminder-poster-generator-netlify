@@ -289,7 +289,7 @@ export const PosterCanvas: React.FC<PosterCanvasProps> = ({
 
                 {/* Decorative "Seal" */}
                 {styleConfig.showSeal && (
-                <div className="absolute bottom-6 right-6 z-30 opacity-95 transform rotate-[-5deg] mix-blend-multiply pointer-events-none">
+                <div className="absolute bottom-6 right-6 z-30 transform rotate-[-5deg] pointer-events-none">
                      <div className="w-24 h-24 relative transition-all duration-300">
                         <svg viewBox="0 0 200 200" className="w-full h-full drop-shadow-sm">
                             <defs>
@@ -305,7 +305,8 @@ export const PosterCanvas: React.FC<PosterCanvasProps> = ({
                             </defs>
                             
                             <g mask="url(#grungeMask)">
-                                <rect x="10" y="10" width="180" height="180" rx="25" ry="25" fill="#D81E06" />
+                                {/* Use rgba instead of mix-blend-mode for broader compatibility (html2canvas) */}
+                                <rect x="10" y="10" width="180" height="180" rx="25" ry="25" fill="rgba(216, 30, 6, 0.75)" />
                                 <rect x="20" y="20" width="160" height="160" rx="18" fill="none" stroke="rgba(255,255,255,0.3)" strokeWidth="2" strokeDasharray="10 5" />
                                 <text x="100" y="92" textAnchor="middle" fill="white" fontFamily="'Noto Serif SC', serif" fontWeight="900" fontSize="60" letterSpacing="6">横税</text>
                                 <text x="100" y="165" textAnchor="middle" fill="white" fontFamily="'Noto Serif SC', serif" fontWeight="900" fontSize="60" letterSpacing="6">纪检</text>
