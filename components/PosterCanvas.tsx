@@ -114,7 +114,10 @@ export const PosterCanvas: React.FC<PosterCanvasProps> = ({
                     {/* Main Body (Rich Text Render) */}
                     <div 
                         className={`text-slate-900 leading-relaxed text-justify ${fontFamilyClass} rich-text-content`} 
-                        style={{ fontSize: `${styleConfig.bodySize}px` }}
+                        style={{ 
+                            fontSize: `${styleConfig.bodySize}px`,
+                            fontFamily: styleConfig.fontFamily 
+                        }}
                         dangerouslySetInnerHTML={{ __html: content.bodyText }}
                     >
                     </div>
@@ -186,6 +189,8 @@ export const PosterCanvas: React.FC<PosterCanvasProps> = ({
         .rich-text-content * {
             font-size: inherit !important;
             line-height: inherit;
+            /* Allow font-family to inherit from parent */
+            font-family: inherit;
         }
 
         /* Re-establish relative sizing for Headers so they scale PROPORTIONALLY to the slider */

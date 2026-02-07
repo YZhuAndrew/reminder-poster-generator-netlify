@@ -5,9 +5,10 @@ interface SimpleEditorProps {
   onChange: (html: string) => void;
   placeholder?: string;
   className?: string;
+  fontFamily?: string;
 }
 
-export const SimpleEditor: React.FC<SimpleEditorProps> = ({ value, onChange, placeholder, className }) => {
+export const SimpleEditor: React.FC<SimpleEditorProps> = ({ value, onChange, placeholder, className, fontFamily }) => {
   const contentRef = useRef<HTMLDivElement>(null);
 
   // Initial load
@@ -136,8 +137,11 @@ export const SimpleEditor: React.FC<SimpleEditorProps> = ({ value, onChange, pla
             onInput={handleInput}
             // Use 'prose' (Tailwind Typography) conceptual styles here to match the poster feel
             // Removed: h-full, overflow-y-auto to allow growth
-            className="w-full p-4 text-slate-900 font-serif-sc focus:outline-none leading-relaxed [&_ul]:list-disc [&_ul]:pl-5 [&_ol]:list-decimal [&_ol]:pl-5 [&_h2]:text-2xl [&_h2]:font-bold [&_h2]:my-2 [&_h2]:text-[#DE2910] [&_h3]:text-xl [&_h3]:font-bold [&_h3]:my-1"
-            style={{ minHeight: '200px' }}
+            className="w-full p-4 text-slate-900 focus:outline-none leading-relaxed [&_ul]:list-disc [&_ul]:pl-5 [&_ol]:list-decimal [&_ol]:pl-5 [&_h2]:text-2xl [&_h2]:font-bold [&_h2]:my-2 [&_h2]:text-[#DE2910] [&_h3]:text-xl [&_h3]:font-bold [&_h3]:my-1"
+            style={{ 
+                minHeight: '200px',
+                fontFamily: fontFamily || '"Noto Serif SC", serif' // Use passed font family or default
+            }}
         />
         {value === '' && (
             <div className="absolute top-4 left-4 pointer-events-none text-slate-400 italic">

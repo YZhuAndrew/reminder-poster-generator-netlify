@@ -1,6 +1,7 @@
 import React, { useState } from 'react';
 import { PosterStyle, PosterContent, HistoryItem, PosterTheme, Step } from '../types';
 import { SimpleEditor } from './SimpleEditor';
+import { FONT_OPTIONS } from '../App';
 
 interface ControlsProps {
   step: Step; 
@@ -165,7 +166,24 @@ export const Controls: React.FC<ControlsProps> = ({
 
       <div className="w-full h-px bg-blue-900/50"></div>
 
-      {/* Text Settings */}
+      {/* Font Settings */}
+      <div className="space-y-2">
+         <label className="text-xs font-semibold uppercase text-blue-400 tracking-wider">正文字体 (Font)</label>
+         <div className="grid grid-cols-2 gap-2">
+            {FONT_OPTIONS.map(font => (
+                <button
+                    key={font.id}
+                    onClick={() => handleChange('fontFamily', font.value)}
+                    className={`py-2 px-3 rounded border text-sm transition-all text-left truncate ${styleConfig.fontFamily === font.value ? 'bg-blue-600 text-white border-blue-400 ring-1 ring-blue-300' : 'bg-[#0a1628] text-blue-300 border-blue-800 hover:border-blue-600'}`}
+                    style={{ fontFamily: font.value }}
+                >
+                    {font.name}
+                </button>
+            ))}
+         </div>
+      </div>
+
+      {/* Text Size Settings */}
       <div className="space-y-4">
         <label className="text-xs font-semibold uppercase text-blue-400 tracking-wider">字号调整</label>
         
@@ -297,11 +315,25 @@ export const Controls: React.FC<ControlsProps> = ({
             </div>
             <div>
                 <label className="block text-xs font-semibold text-blue-300 mb-1 uppercase tracking-wider">正文 (Content)</label>
+                <div className="mb-2 flex gap-2 overflow-x-auto pb-1">
+                   {/* Mini Font Selector for quick access */}
+                   {FONT_OPTIONS.map(font => (
+                       <button 
+                           key={font.id}
+                           onClick={() => handleChange('fontFamily', font.value)}
+                           className={`flex-shrink-0 px-2 py-1 text-xs border rounded transition-colors ${styleConfig.fontFamily === font.value ? 'bg-blue-600 border-blue-400 text-white' : 'bg-transparent border-blue-800 text-blue-400 hover:text-white'}`}
+                           title={font.name}
+                       >
+                           {font.name.slice(-2)}
+                       </button>
+                   ))}
+                </div>
                 <SimpleEditor
                   value={inputBody}
                   onChange={(html) => setInputBody(html)}
                   placeholder="请输入正文内容..."
                   className="w-full"
+                  fontFamily={styleConfig.fontFamily} // Pass font family down
                 />
             </div>
         </div>

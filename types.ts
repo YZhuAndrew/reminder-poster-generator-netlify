@@ -1,3 +1,4 @@
+
 export interface PosterContent {
   headline: string;
   // subheadline removed - merged into bodyText via Rich Text
@@ -30,7 +31,7 @@ export interface PosterStyle {
   overlayOpacity: number;
   textColor: string;
   alignment: 'top' | 'center' | 'bottom';
-  fontFamily: 'sans' | 'serif';
+  fontFamily: string; // Changed from 'sans' | 'serif' to string to support specific fonts
   widthScale: number;
   heightScale: number;
   theme: PosterTheme;

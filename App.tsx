@@ -49,13 +49,21 @@ export const TEXTURE_STYLES = [
   { id: 'city', name: '城市剪影' },
 ];
 
+export const FONT_OPTIONS = [
+  { id: 'song', name: '标准宋体', value: '"Noto Serif SC", "SimSun", "Songti SC", serif' },
+  { id: 'hei', name: '现代黑体', value: '"Noto Sans SC", "SimHei", "Heiti SC", sans-serif' },
+  { id: 'kai', name: '传统楷体', value: '"KaiTi", "STKaiti", "Ma Shan Zheng", serif' },
+  { id: 'fang', name: '公文仿宋', value: '"FangSong", "STFangsong", serif' },
+  { id: 'calligraphy', name: '书法行书', value: '"Zhi Mang Xing", "Ma Shan Zheng", cursive' },
+];
+
 const DEFAULT_STYLE: PosterStyle = {
   titleSize: 56,
   bodySize: 16,
   overlayOpacity: 0.2,
   textColor: '#000000',
   alignment: 'center',
-  fontFamily: 'serif',
+  fontFamily: FONT_OPTIONS[0].value, // Default to Songti
   widthScale: 600, // Default width in px
   heightScale: 960, // Default height in px
   theme: THEMES[0],
@@ -114,7 +122,9 @@ function App() {
                 styleConfig: {
                     ...(item.styleConfig || DEFAULT_STYLE),
                     theme: safeTheme,
-                    textureStyle: item.styleConfig?.textureStyle || 'clouds'
+                    textureStyle: item.styleConfig?.textureStyle || 'clouds',
+                    // Ensure fontFamily exists (migration for old records)
+                    fontFamily: item.styleConfig?.fontFamily || DEFAULT_STYLE.fontFamily
                 }
             };
         });
@@ -221,7 +231,8 @@ function App() {
     // The migration logic on mount should have fixed this, but double check
     const safeStyle = {
         ...item.styleConfig,
-        theme: item.styleConfig.theme || THEMES[0]
+        theme: item.styleConfig.theme || THEMES[0],
+        fontFamily: item.styleConfig.fontFamily || DEFAULT_STYLE.fontFamily
     };
     setStyleConfig(safeStyle);
     setState({
