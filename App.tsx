@@ -16,7 +16,7 @@ export const THEMES: PosterTheme[] = [
   },
   {
     id: 'blue',
-    name: '公安蓝',
+    name: '税务蓝',
     primaryColor: '#0f2b5c',
     secondaryColor: '#FFFFFF',
     backgroundColor: '#F0F7FF',
@@ -67,7 +67,8 @@ const DEFAULT_STYLE: PosterStyle = {
   widthScale: 600, // Default width in px
   heightScale: 960, // Default height in px
   theme: THEMES[0],
-  textureStyle: 'clouds'
+  textureStyle: 'clouds',
+  showSeal: true // Default to showing the seal
 };
 
 function App() {
@@ -124,7 +125,9 @@ function App() {
                     theme: safeTheme,
                     textureStyle: item.styleConfig?.textureStyle || 'clouds',
                     // Ensure fontFamily exists (migration for old records)
-                    fontFamily: item.styleConfig?.fontFamily || DEFAULT_STYLE.fontFamily
+                    fontFamily: item.styleConfig?.fontFamily || DEFAULT_STYLE.fontFamily,
+                    // Ensure showSeal exists (migration for old records), default to true
+                    showSeal: item.styleConfig?.showSeal !== undefined ? item.styleConfig.showSeal : true
                 }
             };
         });
@@ -232,7 +235,8 @@ function App() {
     const safeStyle = {
         ...item.styleConfig,
         theme: item.styleConfig.theme || THEMES[0],
-        fontFamily: item.styleConfig.fontFamily || DEFAULT_STYLE.fontFamily
+        fontFamily: item.styleConfig.fontFamily || DEFAULT_STYLE.fontFamily,
+        showSeal: item.styleConfig.showSeal !== undefined ? item.styleConfig.showSeal : true
     };
     setStyleConfig(safeStyle);
     setState({
@@ -266,6 +270,11 @@ function App() {
     alert('已保存到历史记录');
   };
 
+  // Used when user switches texture style manually - clear the AI image to show pattern
+  const handleClearImage = () => {
+    setState(prev => ({ ...prev, imageUrl: null }));
+  };
+
   const handleGenerate = async () => {
     if (!inputTitle.trim() || !inputBody.trim()) return;
 
@@ -277,16 +286,13 @@ function App() {
       // 1. Analyze text structure (Title + Body)
       const content = await analyzeWarningText(inputTitle, inputBody);
       
-      setState(prev => ({ ...prev, content, isGeneratingText: false, isGeneratingImage: true }));
+      // STOP HERE: Do not generate AI image automatically. 
+      // Set imageUrl to null to use the default CSS/SVG patterns.
+      setState(prev => ({ ...prev, content, isGeneratingText: false, isGeneratingImage: false, imageUrl: null }));
       setStep(Step.PREVIEW);
 
-      // 2. Generate Image (in parallel or sequence)
-      // Pass the current theme and texture style
-      const imageUrl = await generatePosterBackground(content.imagePrompt, styleConfig.theme, styleConfig.textureStyle);
-      setState(prev => ({ ...prev, imageUrl, isGeneratingImage: false }));
-
-      // 3. Auto-save to history on success (creates a NEW entry)
-      addToHistory(inputTitle, inputBody, content, imageUrl, styleConfig, null);
+      // 2. Auto-save to history on success (creates a NEW entry without image)
+      addToHistory(inputTitle, inputBody, content, null, styleConfig, null);
 
     } catch (error) {
       console.error(error);
@@ -306,6 +312,11 @@ function App() {
       // Pass the current theme and texture style
       const imageUrl = await generatePosterBackground(state.content.imagePrompt + ` variant ${Date.now()}`, styleConfig.theme, styleConfig.textureStyle);
       setState(prev => ({ ...prev, imageUrl, isGeneratingImage: false }));
+      
+      // Update history with the new image if we have a current ID
+      if (currentId) {
+          addToHistory(inputTitle, inputBody, state.content, imageUrl, styleConfig, currentId);
+      }
     } catch (error) {
        setState(prev => ({ ...prev, isGeneratingImage: false }));
     }
@@ -352,6 +363,7 @@ function App() {
           setStyleConfig={setStyleConfig}
           content={state.content}
           onRegenerateImage={handleRegenerateImage}
+          onClearImage={handleClearImage}
           isGeneratingImage={state.isGeneratingImage}
           onBackToEdit={handleBackToEdit}
           

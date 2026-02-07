@@ -48,6 +48,124 @@ export const PosterCanvas: React.FC<PosterCanvasProps> = ({
     return () => window.removeEventListener('resize', calculateScale);
   }, [logicalW, logicalH]);
 
+  // --- Background Pattern Renderers ---
+  const renderBackgroundPattern = () => {
+      // Common opacity layer for texture
+      const commonOverlay = (
+        <div className="absolute inset-0 opacity-10 mix-blend-overlay pointer-events-none z-0"
+            style={{
+                filter: 'contrast(120%) brightness(120%)',
+                backgroundImage: 'url("data:image/svg+xml;base64,PHN2ZyB4bWxucz0naHR0cDovL3d3dy53My5vcmcvMjAwMC9zdmcnIHdpZHRoPSc0JyBoZWlnaHQ9JzQnPgo8cmVjdCB3aWR0aD0nNCcgaGVpZ2h0PSc0JyBmaWxsPScjZmZmJy8+CjxyZWN0IHdpZHRoPScxJyBoZWlnaHQ9JzEnIGZpbGw9JyNjY2MnLz4KPC9zdmc+")'
+            }}
+        ></div>
+      );
+
+      switch (styleConfig.textureStyle) {
+        case 'clouds':
+            return (
+                <>
+                    <div className="absolute inset-0 opacity-20 pointer-events-none" 
+                        style={{
+                            backgroundImage: `
+                                radial-gradient(circle at 10% 20%, ${secondaryColor} 0%, transparent 20%),
+                                radial-gradient(circle at 90% 80%, ${secondaryColor} 0%, transparent 20%),
+                                radial-gradient(circle at 50% 50%, white 0%, transparent 40%)
+                            `,
+                            filter: 'blur(40px)'
+                        }}
+                    ></div>
+                    {/* SVG Cloud Pattern */}
+                    <div className="absolute inset-0 opacity-10 pointer-events-none"
+                        style={{
+                            backgroundImage: `url("data:image/svg+xml,%3Csvg width='60' height='60' viewBox='0 0 60 60' xmlns='http://www.w3.org/2000/svg'%3E%3Cpath d='M30 30c0-5.5 4.5-10 10-10s10 4.5 10 10c0 5.5-4.5 10-10 10s-10-4.5-10-10z' fill='white' fill-opacity='0.4'/%3E%3Cpath d='M10 10c0-5.5 4.5-10 10-10s10 4.5 10 10c0 5.5-4.5 10-10 10S10 15.5 10 10z' fill='white' fill-opacity='0.4'/%3E%3C/svg%3E")`,
+                            backgroundSize: '120px 120px'
+                        }}
+                    ></div>
+                    {commonOverlay}
+                </>
+            );
+        case 'mountains':
+            return (
+                <>
+                     <div className="absolute inset-0 opacity-30 pointer-events-none" 
+                        style={{
+                            background: `linear-gradient(to bottom, transparent 40%, ${primaryColor} 100%)`
+                        }}
+                    ></div>
+                    <svg className="absolute bottom-0 left-0 w-full h-[40%] opacity-20 pointer-events-none" viewBox="0 0 100 100" preserveAspectRatio="none">
+                         <path d="M0 100 L30 40 L60 100 Z" fill="white" />
+                         <path d="M40 100 L70 50 L100 100 Z" fill="white" />
+                         <path d="M-20 100 L20 70 L60 100 Z" fill="white" opacity="0.7"/>
+                    </svg>
+                    {commonOverlay}
+                </>
+            );
+        case 'bamboo':
+             return (
+                <>
+                    <div className="absolute inset-0 opacity-10 pointer-events-none"
+                        style={{
+                             backgroundImage: `linear-gradient(90deg, transparent 95%, ${secondaryColor} 96%, ${secondaryColor} 98%, transparent 99%)`,
+                             backgroundSize: '80px 100%'
+                        }}
+                    ></div>
+                    <svg className="absolute bottom-0 right-0 w-[40%] h-[60%] opacity-10 pointer-events-none" viewBox="0 0 100 100" preserveAspectRatio="none">
+                         <path d="M80 100 Q 85 50 80 0" stroke="white" strokeWidth="2" fill="none" />
+                         <path d="M60 100 Q 65 60 60 10" stroke="white" strokeWidth="1.5" fill="none" />
+                         <path d="M80 80 L90 75 M80 60 L70 55 M60 40 L50 35" stroke="white" strokeWidth="1" fill="none" />
+                    </svg>
+                    {commonOverlay}
+                </>
+             );
+        case 'geometric':
+            return (
+                <>
+                     <div className="absolute inset-0 opacity-10 pointer-events-none"
+                        style={{
+                            backgroundImage: `linear-gradient(45deg, ${secondaryColor} 25%, transparent 25%, transparent 75%, ${secondaryColor} 75%, ${secondaryColor}), linear-gradient(45deg, ${secondaryColor} 25%, transparent 25%, transparent 75%, ${secondaryColor} 75%, ${secondaryColor})`,
+                            backgroundSize: '40px 40px',
+                            backgroundPosition: '0 0, 20px 20px'
+                        }}
+                     ></div>
+                     <div className="absolute inset-0 opacity-30 bg-gradient-to-br from-transparent via-transparent to-black pointer-events-none"></div>
+                     {commonOverlay}
+                </>
+            );
+        case 'city':
+             return (
+                <>
+                    <div className="absolute inset-0 opacity-10 pointer-events-none" 
+                        style={{
+                            background: `repeating-linear-gradient(0deg, transparent, transparent 19px, ${secondaryColor} 20px)`
+                        }}
+                    ></div>
+                    <div className="absolute bottom-0 left-0 right-0 h-[20%] opacity-20 pointer-events-none flex items-end justify-between px-4">
+                         <div className="w-[10%] h-[80%] bg-white"></div>
+                         <div className="w-[15%] h-[60%] bg-white"></div>
+                         <div className="w-[10%] h-[90%] bg-white"></div>
+                         <div className="w-[12%] h-[50%] bg-white"></div>
+                         <div className="w-[15%] h-[70%] bg-white"></div>
+                         <div className="w-[8%] h-[40%] bg-white"></div>
+                         <div className="w-[10%] h-[85%] bg-white"></div>
+                    </div>
+                    {commonOverlay}
+                </>
+             );
+        default: // paper or default
+             return (
+                <>
+                    <div className="absolute inset-0 opacity-20 pointer-events-none" 
+                         style={{ 
+                            backgroundImage: `radial-gradient(${secondaryColor} 1px, transparent 1px)`, 
+                            backgroundSize: '30px 30px' 
+                         }} 
+                    ></div>
+                    {commonOverlay}
+                </>
+             );
+      }
+  };
+
   return (
     <div ref={containerRef} className="w-full h-full flex items-center justify-center overflow-hidden">
       <div 
@@ -72,13 +190,21 @@ export const PosterCanvas: React.FC<PosterCanvasProps> = ({
             />
         ) : (
           <div 
-            className="absolute inset-0 z-0 flex items-center justify-center"
+            className="absolute inset-0 z-0 flex items-center justify-center overflow-hidden"
             style={{ 
-                background: `linear-gradient(to bottom, ${primaryColor}, #000000)`
+                background: `linear-gradient(135deg, ${primaryColor}, #000000)`
             }}
           >
+             {/* Dynamic CSS/SVG Pattern */}
+             {renderBackgroundPattern()}
+
              {isGeneratingImage && (
-                <div className="animate-spin w-8 h-8 border-4 border-current border-t-transparent rounded-full" style={{ color: secondaryColor }}></div>
+                <div className="absolute inset-0 flex items-center justify-center z-50 bg-black/30 backdrop-blur-sm">
+                    <div className="flex flex-col items-center gap-3">
+                        <div className="animate-spin w-12 h-12 border-4 border-white/20 border-t-white rounded-full shadow-lg"></div>
+                        <div className="text-white font-bold text-sm tracking-wider">AI 绘图中...</div>
+                    </div>
+                </div>
              )}
           </div>
         )}
@@ -139,6 +265,7 @@ export const PosterCanvas: React.FC<PosterCanvasProps> = ({
                 )}
 
                 {/* Decorative "Seal" */}
+                {styleConfig.showSeal && (
                 <div className="absolute bottom-6 right-6 z-30 opacity-95 transform rotate-[-5deg] mix-blend-multiply pointer-events-none">
                      <div className="w-24 h-24 relative transition-all duration-300">
                         <svg viewBox="0 0 200 200" className="w-full h-full drop-shadow-sm">
@@ -163,6 +290,7 @@ export const PosterCanvas: React.FC<PosterCanvasProps> = ({
                         </svg>
                      </div>
                 </div>
+                )}
             </div>
 
         </div>

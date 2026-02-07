@@ -36,6 +36,7 @@ export interface PosterStyle {
   heightScale: number;
   theme: PosterTheme;
   textureStyle: string;
+  showSeal: boolean; // Controls visibility of the seal/logo
 }
 
 export interface HistoryItem {

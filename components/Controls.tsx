@@ -17,6 +17,7 @@ interface ControlsProps {
   setStyleConfig: React.Dispatch<React.SetStateAction<PosterStyle>>;
   content: PosterContent | null;
   onRegenerateImage: () => void;
+  onClearImage: () => void; // New prop to clear AI image
   isGeneratingImage: boolean;
   onBackToEdit: () => void;
 
@@ -47,6 +48,7 @@ export const Controls: React.FC<ControlsProps> = ({
   setStyleConfig,
   content,
   onRegenerateImage,
+  onClearImage,
   isGeneratingImage,
   onBackToEdit,
   history,
@@ -59,6 +61,7 @@ export const Controls: React.FC<ControlsProps> = ({
   availableTextures
 }) => {
   const [activeTab, setActiveTab] = useState<'editor' | 'history'>('editor');
+  const [genCode, setGenCode] = useState(''); // State for the generation code
 
   const handleChange = (key: keyof PosterStyle, value: any) => {
     setStyleConfig(prev => ({ ...prev, [key]: value }));
@@ -133,7 +136,20 @@ export const Controls: React.FC<ControlsProps> = ({
 
       {/* Layout Settings */}
       <div className="space-y-4">
-        <label className="text-xs font-semibold uppercase text-blue-400 tracking-wider">画布尺寸 (像素)</label>
+        <div className="flex items-center justify-between mb-2">
+            <label className="text-xs font-semibold uppercase text-blue-400 tracking-wider">布局设置</label>
+        </div>
+
+        {/* Seal Toggle */}
+        <div className="flex items-center justify-between py-2 border border-blue-800/50 rounded bg-blue-900/20 px-3">
+             <span className="text-sm text-blue-200">显示“横税纪检”印章</span>
+             <button 
+                 onClick={() => handleChange('showSeal', !styleConfig.showSeal)}
+                 className={`w-10 h-5 rounded-full relative transition-colors duration-200 ease-in-out ${styleConfig.showSeal ? 'bg-red-600' : 'bg-blue-900'}`}
+             >
+                 <div className={`absolute top-1 w-3 h-3 bg-white rounded-full transition-all duration-200 shadow-sm ${styleConfig.showSeal ? 'left-6' : 'left-1'}`}></div>
+             </button>
+        </div>
         
         {/* Width Slider */}
         <div>
@@ -245,29 +261,67 @@ export const Controls: React.FC<ControlsProps> = ({
             {availableTextures && availableTextures.map(tex => (
                 <button
                     key={tex.id}
-                    onClick={() => handleChange('textureStyle', tex.id)}
+                    onClick={() => {
+                        handleChange('textureStyle', tex.id);
+                        onClearImage(); // Reset to default CSS pattern when changing style
+                    }}
                     className={`py-2 rounded border text-xs font-medium transition-all ${styleConfig.textureStyle === tex.id ? 'bg-blue-600 text-white border-blue-400 ring-1 ring-blue-300' : 'bg-[#0a1628] text-blue-300 border-blue-800 hover:border-blue-600'}`}
                 >
                     {tex.name}
                 </button>
             ))}
          </div>
+         <p className="text-[10px] text-blue-400 mt-1">切换纹理将重置为默认图案。如需 AI 绘图请点击下方智能生成。</p>
       </div>
 
        {/* Actions */}
        <div className="pt-4 border-t border-blue-900/50 space-y-3">
+            {/* Gen Code Input */}
+            <div className="relative">
+                <input 
+                    type="password"
+                    value={genCode}
+                    onChange={(e) => setGenCode(e.target.value)}
+                    placeholder="输入生成码以启用 AI 绘图"
+                    className="w-full bg-[#050C1A] border border-blue-800 rounded px-3 py-2 text-sm text-blue-200 placeholder-blue-700 focus:border-red-500 focus:outline-none transition-colors"
+                />
+                {genCode !== 'hfsw' && genCode.length > 0 && (
+                     <div className="absolute right-2 top-1/2 -translate-y-1/2 text-red-500">
+                        <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" /></svg>
+                     </div>
+                )}
+                {genCode === 'hfsw' && (
+                     <div className="absolute right-2 top-1/2 -translate-y-1/2 text-green-500">
+                        <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" /></svg>
+                     </div>
+                )}
+            </div>
+
             <button 
-                onClick={onRegenerateImage}
+                onClick={() => {
+                    if (genCode === 'hfsw') {
+                        onRegenerateImage();
+                    } else {
+                        alert('生成码错误！默认生成码为 hfsw');
+                    }
+                }}
                 disabled={isGeneratingImage}
-                className="w-full py-2 bg-blue-800/50 hover:bg-blue-800 text-blue-100 rounded-lg text-sm font-medium transition-colors border border-blue-700/50 flex items-center justify-center gap-2"
+                className={`w-full py-3 rounded-lg text-sm font-bold transition-all shadow-lg flex items-center justify-center gap-2 ${
+                    isGeneratingImage 
+                    ? 'bg-slate-700 cursor-not-allowed text-slate-400' 
+                    : 'bg-gradient-to-r from-purple-600 to-indigo-600 hover:from-purple-500 hover:to-indigo-500 text-white'
+                }`}
             >
                 {isGeneratingImage ? (
                     <>
                         <div className="w-4 h-4 border-2 border-white/30 border-t-white rounded-full animate-spin"></div>
-                        绘制中...
+                        AI 绘制中...
                     </>
                 ) : (
-                    '根据当前配置生成背景'
+                    <>
+                        <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19.428 15.428a2 2 0 00-1.022-.547l-2.387-.477a6 6 0 00-3.86.517l-.318.158a6 6 0 01-3.86.517L6.05 15.21a2 2 0 00-1.806.547M8 4h8l-1 1v5.172a2 2 0 00.586 1.414l5 5c1.26 1.26.367 3.414-1.415 3.414H4.828c-1.782 0-2.674-2.154-1.414-3.414l5-5A2 2 0 009 10.172V5L8 4z" /></svg>
+                        智能生成背景 (AI)
+                    </>
                 )}
             </button>
             <button 

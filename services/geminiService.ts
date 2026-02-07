@@ -67,7 +67,7 @@ export const analyzeWarningText = async (title: string, bodyHtml: string): Promi
 /**
  * Generates an image based on the prompt.
  */
-export const generatePosterBackground = async (prompt: string, theme: PosterTheme, textureStyle: string = 'clouds'): Promise<string> => {
+export const generatePosterBackground = async (prompt: string, theme: PosterTheme, textureStyle: string = 'clouds'): Promise<string | null> => {
   const model = 'gemini-2.5-flash-image';
 
   try {
@@ -131,9 +131,15 @@ export const generatePosterBackground = async (prompt: string, theme: PosterThem
     
     throw new Error("No image data found in response");
 
-  } catch (error) {
+  } catch (error: any) {
+    // Graceful handling of Quota limits (429)
+    if (error.status === 429 || error.code === 429 || error.message?.includes('429') || error.message?.includes('quota')) {
+         console.warn("Image generation skipped due to API quota limits (429). Using CSS fallback.");
+         return null;
+    }
+
     console.error("Image gen error", error);
-    // Fallback placeholder
-    return `https://picsum.photos/600/800?grayscale&blur=2`;
+    // Return null to allow UI to fallback to CSS pattern
+    return null;
   }
 };
