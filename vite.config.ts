@@ -17,8 +17,8 @@ export default defineConfig(({ mode }) => {
     plugins: [react()],
     define: {
       // Polyfill process.env.API_KEY so the existing code works.
-      // If apiKey is undefined, it strings as undefined, causing the runtime check to fail gracefully.
-      'process.env.API_KEY': JSON.stringify(apiKey)
+      // If apiKey is undefined, use empty string to avoid "undefined" being injected as code.
+      'process.env.API_KEY': JSON.stringify(apiKey || '')
     }
   };
 });
