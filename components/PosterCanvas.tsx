@@ -36,16 +36,34 @@ export const PosterCanvas: React.FC<PosterCanvasProps> = ({
     const calculateScale = () => {
         if (!containerRef.current) return;
         const parent = containerRef.current;
-        const availableW = parent.clientWidth - 40; 
+        // Use clientWidth/Height of the parent container
+        const availableW = parent.clientWidth - 40; // 20px padding each side
         const availableH = parent.clientHeight - 40;
+        
         if (availableW <= 0 || availableH <= 0) return;
+        
         const scaleX = availableW / logicalW;
         const scaleY = availableH / logicalH;
+        // Fit to contain
         setScale(Math.min(scaleX, scaleY));
     };
+
     calculateScale();
+    
+    // Add ResizeObserver to react to container resizing (e.g., mobile split view open/close)
+    const observer = new ResizeObserver(() => {
+        calculateScale();
+    });
+
+    if (containerRef.current) {
+        observer.observe(containerRef.current);
+    }
+
     window.addEventListener('resize', calculateScale);
-    return () => window.removeEventListener('resize', calculateScale);
+    return () => {
+        window.removeEventListener('resize', calculateScale);
+        observer.disconnect();
+    };
   }, [logicalW, logicalH]);
 
   // --- Background Pattern Renderers ---

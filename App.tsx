@@ -231,7 +231,6 @@ function App() {
     setInputTitle(item.title);
     setInputBody(item.body);
     // Ensure we are loading a styleConfig with a valid theme object
-    // The migration logic on mount should have fixed this, but double check
     const safeStyle = {
         ...item.styleConfig,
         theme: item.styleConfig.theme || THEMES[0],
@@ -241,7 +240,7 @@ function App() {
     setStyleConfig(safeStyle);
     setState({
       content: item.content,
-      imageUrl: item.imageUrl, // Might be null if stripped, Canvas handles this
+      imageUrl: item.imageUrl,
       isGeneratingText: false,
       isGeneratingImage: false,
       error: null
@@ -270,7 +269,6 @@ function App() {
     alert('已保存到历史记录');
   };
 
-  // Used when user switches texture style manually - clear the AI image to show pattern
   const handleClearImage = () => {
     setState(prev => ({ ...prev, imageUrl: null }));
   };
@@ -279,19 +277,13 @@ function App() {
     if (!inputTitle.trim() || !inputBody.trim()) return;
 
     setState(prev => ({ ...prev, isGeneratingText: true, error: null }));
-    // Reset ID on new generation to ensure we don't overwrite history unless user explicitly saves over it later
     setCurrentId(null); 
 
     try {
-      // 1. Analyze text structure (Title + Body)
       const content = await analyzeWarningText(inputTitle, inputBody);
       
-      // STOP HERE: Do not generate AI image automatically. 
-      // Set imageUrl to null to use the default CSS/SVG patterns.
       setState(prev => ({ ...prev, content, isGeneratingText: false, isGeneratingImage: false, imageUrl: null }));
       setStep(Step.PREVIEW);
-
-      // 2. Auto-save to history on success (creates a NEW entry without image)
       addToHistory(inputTitle, inputBody, content, null, styleConfig, null);
 
     } catch (error) {
@@ -309,11 +301,9 @@ function App() {
     if (!state.content) return;
     setState(prev => ({ ...prev, isGeneratingImage: true }));
     try {
-      // Pass the current theme and texture style
       const imageUrl = await generatePosterBackground(state.content.imagePrompt + ` variant ${Date.now()}`, styleConfig.theme, styleConfig.textureStyle);
       setState(prev => ({ ...prev, imageUrl, isGeneratingImage: false }));
       
-      // Update history with the new image if we have a current ID
       if (currentId) {
           addToHistory(inputTitle, inputBody, state.content, imageUrl, styleConfig, currentId);
       }
@@ -328,8 +318,8 @@ function App() {
 
     try {
         const canvas = await html2canvas(element, {
-            scale: 2, // 2x for retina quality
-            useCORS: true, // Allow cross-origin images (important for base64 or external images)
+            scale: 2, 
+            useCORS: true, 
             backgroundColor: null,
         });
 
@@ -347,12 +337,61 @@ function App() {
     setStep(Step.INPUT);
   };
 
+  // Determine if we should show the preview pane on mobile
+  // On Desktop it's always visible. On Mobile, only when content is generated.
+  const hasContent = !!state.content;
+
   return (
-    <div className="min-h-screen flex flex-col lg:flex-row bg-[#050C1A]">
-      {/* Left Panel: Controls (NOW MAIN, Flex-1) */}
-      <div className="flex-1 min-w-0 p-4 lg:h-screen lg:overflow-y-auto z-20 order-1">
+    // Main Container: No Window Scroll, Inner Scroll Only.
+    <div className="h-screen w-full flex flex-col lg:flex-row bg-[#050C1A] overflow-hidden">
+      
+      {/* 
+         PREVIEW PANEL 
+         Mobile: Order 1 (Top). Height depends on content (0 if inputting, 40vh if previewing).
+         Desktop: Order 2 (Right). Height 100%.
+      */}
+      <div className={`
+          relative z-10 bg-[#050C1A] transition-all duration-300 ease-in-out shadow-2xl
+          order-1 lg:order-2
+          w-full lg:w-[500px] flex-shrink-0
+          ${hasContent ? 'h-[40vh] border-b border-white/10' : 'h-0 border-b-0'} lg:h-full lg:border-b-0 lg:border-l lg:border-white/10
+          flex items-center justify-center
+      `}>
+         {/* Background Grid Pattern */}
+         <div className="absolute inset-0 z-0 opacity-20 pointer-events-none" 
+              style={{ backgroundImage: 'radial-gradient(#1e3a8a 1px, transparent 1px)', backgroundSize: '24px 24px' }}>
+         </div>
+
+         {/* Only render PosterCanvas if content exists. */}
+         {/* If no content, on Desktop we show placeholder. On Mobile height is 0 so it's hidden. */}
+         {state.content && styleConfig ? (
+            <PosterCanvas 
+                content={state.content}
+                imageUrl={state.imageUrl}
+                styleConfig={styleConfig}
+                isGeneratingImage={state.isGeneratingImage}
+            />
+         ) : (
+            <div className="text-center opacity-40 px-4">
+                <div className="w-24 h-32 border-2 border-dashed border-blue-500 rounded-lg mx-auto mb-4 flex items-center justify-center">
+                    <svg className="w-8 h-8 text-blue-500" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 16l4.586-4.586a2 2 0 012.828 0L16 16m-2-2l1.586-1.586a2 2 0 012.828 0L20 14m-6-6h.01M6 20h12a2 2 0 002-2V6a2 2 0 00-2-2H6a2 2 0 00-2 2v12a2 2 0 002 2z" />
+                    </svg>
+                </div>
+                <p className="text-blue-200 font-serif-sc">等待生成海报...</p>
+                <p className="text-blue-400/50 text-xs mt-2">或从“历史记录”加载</p>
+            </div>
+         )}
+      </div>
+
+      {/* 
+         CONTROLS PANEL
+         Mobile: Order 2 (Bottom). Takes remaining height. Scrollable.
+         Desktop: Order 1 (Left). Takes remaining width. Scrollable.
+      */}
+      <div className="order-2 lg:order-1 flex-1 min-w-0 h-full overflow-y-auto custom-scrollbar p-4 relative z-0">
         <Controls 
-          step={step} // Pass the current step status
+          step={step} 
           inputTitle={inputTitle}
           setInputTitle={setInputTitle}
           inputBody={inputBody}
@@ -367,17 +406,14 @@ function App() {
           isGeneratingImage={state.isGeneratingImage}
           onBackToEdit={handleBackToEdit}
           
-          // History Props
           history={history}
           onLoadHistory={handleLoadHistory}
           onDeleteHistory={handleDeleteHistory}
           
-          // New Actions
           onNew={handleNew}
           onSave={handleManualSave}
           onDownload={handleDownloadImage}
           
-          // Theme Props
           availableThemes={THEMES}
           availableTextures={TEXTURE_STYLES}
         />
@@ -388,33 +424,6 @@ function App() {
         )}
       </div>
 
-      {/* Right Panel: Preview (NOW SIDEBAR, Fixed Width) */}
-      <div className="w-full lg:w-[500px] flex-shrink-0 flex items-center justify-center p-4 relative bg-[#050C1A] overflow-hidden order-2 border-l border-white/5">
-         {/* Background Grid Pattern */}
-         <div className="absolute inset-0 z-0 opacity-20 pointer-events-none" 
-              style={{ backgroundImage: 'radial-gradient(#1e3a8a 1px, transparent 1px)', backgroundSize: '24px 24px' }}>
-         </div>
-
-         {/* Added Safety Check: Only render Canvas if content AND styleConfig exist */}
-         {state.content && styleConfig ? (
-            <PosterCanvas 
-                content={state.content}
-                imageUrl={state.imageUrl}
-                styleConfig={styleConfig}
-                isGeneratingImage={state.isGeneratingImage}
-            />
-         ) : (
-            <div className="text-center opacity-40">
-                <div className="w-24 h-32 border-2 border-dashed border-blue-500 rounded-lg mx-auto mb-4 flex items-center justify-center">
-                    <svg className="w-8 h-8 text-blue-500" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 16l4.586-4.586a2 2 0 012.828 0L16 16m-2-2l1.586-1.586a2 2 0 012.828 0L20 14m-6-6h.01M6 20h12a2 2 0 002-2V6a2 2 0 00-2-2H6a2 2 0 00-2 2v12a2 2 0 002 2z" />
-                    </svg>
-                </div>
-                <p className="text-blue-200 font-serif-sc">等待生成海报...</p>
-                <p className="text-blue-400/50 text-xs mt-2">或从左侧“历史记录”加载</p>
-            </div>
-         )}
-      </div>
     </div>
   );
 }
