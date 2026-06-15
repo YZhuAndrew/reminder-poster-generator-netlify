@@ -428,9 +428,12 @@ export const Controls: React.FC<ControlsProps> = ({
 
       {/* 折叠分组：装饰与印章 */}
       <CollapsibleSection title="🎊 装饰与印章" defaultOpen={false}>
-        {/* 印章开关 + 文字 */}
+        {/* 印章开关（文字固定为"横税纪检"） */}
         <div className="flex items-center justify-between py-2 border border-blue-800/50 rounded bg-blue-900/20 px-3 mb-3">
-          <span className="text-sm text-blue-200">显示印章</span>
+          <div className="flex flex-col">
+            <span className="text-sm text-blue-200">显示印章</span>
+            <span className="text-[10px] text-blue-400">固定文字「横税纪检」</span>
+          </div>
           <button
             onClick={() => handleChange('showSeal', !styleConfig.showSeal)}
             className={`w-12 h-6 rounded-full relative transition-colors duration-200 min-h-[40px] ${
@@ -444,20 +447,6 @@ export const Controls: React.FC<ControlsProps> = ({
             />
           </button>
         </div>
-
-        {styleConfig.showSeal && (
-          <div className="mb-3">
-            <label className="text-[10px] text-blue-400 mb-1.5 uppercase tracking-wide block">印章文字（2-4字）</label>
-            <input
-              type="text"
-              value={styleConfig.sealText}
-              maxLength={4}
-              onChange={(e) => handleChange('sealText', e.target.value)}
-              placeholder="例如：警示、节日纪律"
-              className="w-full bg-[#0a1628] border border-blue-800 rounded-lg p-2.5 text-white text-sm focus:ring-2 focus:ring-red-600 focus:border-transparent focus:outline-none min-h-[40px]"
-            />
-          </div>
-        )}
 
         <label className="text-[10px] text-blue-400 mb-1.5 uppercase tracking-wide block">装饰元素</label>
         <div className="grid grid-cols-3 gap-2">

@@ -14,49 +14,35 @@ interface PosterCanvasProps {
 }
 
 // 渲染印章（文字可配，解决原先硬编码"横税纪检"）
-const Seal: React.FC<{ text: string }> = ({ text }) => {
-  // 支持 2-4 字，自动按 2x2 / 2x2 排版
-  const chars = text.split('').slice(0, 4);
-  const line1 = chars.slice(0, 2).join('');
-  const line2 = chars.slice(2, 4).join('');
-  const fontSize = chars.length <= 2 ? 70 : 56;
-  return (
-    <div className="absolute bottom-6 right-6 z-30 transform rotate-[-5deg] pointer-events-none">
-      <div className="w-24 h-24 relative transition-all duration-300">
-        <svg viewBox="0 0 200 200" className="w-full h-full drop-shadow-sm" style={{ opacity: 0.85 }}>
-          <g>
-            <rect x="10" y="10" width="180" height="180" rx="25" ry="25" fill="#D81E06" />
-            <rect
-              x="20"
-              y="20"
-              width="160"
-              height="160"
-              rx="18"
-              fill="none"
-              stroke="rgba(255,255,255,0.4)"
-              strokeWidth="4"
-              strokeDasharray="12 8"
-            />
-            {line2 ? (
-              <>
-                <text x="100" y="90" textAnchor="middle" fill="white" fontFamily="'Noto Serif SC', serif" fontWeight="900" fontSize={fontSize} letterSpacing="10">
-                  {line1}
-                </text>
-                <text x="100" y="160" textAnchor="middle" fill="white" fontFamily="'Noto Serif SC', serif" fontWeight="900" fontSize={fontSize} letterSpacing="10">
-                  {line2}
-                </text>
-              </>
-            ) : (
-              <text x="100" y="125" textAnchor="middle" fill="white" fontFamily="'Noto Serif SC', serif" fontWeight="900" fontSize={fontSize} letterSpacing="10">
-                {line1}
-              </text>
-            )}
-          </g>
-        </svg>
-      </div>
+// 徽章文字固定为"横税纪检"，2×2 排版
+const Seal: React.FC = () => (
+  <div className="absolute bottom-6 right-6 z-30 transform rotate-[-5deg] pointer-events-none">
+    <div className="w-24 h-24 relative transition-all duration-300">
+      <svg viewBox="0 0 200 200" className="w-full h-full drop-shadow-sm" style={{ opacity: 0.85 }}>
+        <g>
+          <rect x="10" y="10" width="180" height="180" rx="25" ry="25" fill="#D81E06" />
+          <rect
+            x="20"
+            y="20"
+            width="160"
+            height="160"
+            rx="18"
+            fill="none"
+            stroke="rgba(255,255,255,0.4)"
+            strokeWidth="4"
+            strokeDasharray="12 8"
+          />
+          <text x="100" y="90" textAnchor="middle" fill="white" fontFamily="'Noto Serif SC', serif" fontWeight="900" fontSize="56" letterSpacing="10">
+            横税
+          </text>
+          <text x="100" y="160" textAnchor="middle" fill="white" fontFamily="'Noto Serif SC', serif" fontWeight="900" fontSize="56" letterSpacing="10">
+            纪检
+          </text>
+        </g>
+      </svg>
     </div>
-  );
-};
+  </div>
+);
 
 export const PosterCanvas: React.FC<PosterCanvasProps> = ({
   id = 'poster-capture-area',
@@ -113,7 +99,7 @@ export const PosterCanvas: React.FC<PosterCanvasProps> = ({
   }, [logicalW, logicalH]);
 
   const themeColors = { primaryColor, secondaryColor, backgroundColor, accentColor };
-  const sealNode = styleConfig.showSeal ? <Seal text={styleConfig.sealText || '警示'} /> : null;
+  const sealNode = styleConfig.showSeal ? <Seal /> : null;
 
   return (
     <div ref={containerRef} className="w-full h-full flex items-center justify-center overflow-hidden">
