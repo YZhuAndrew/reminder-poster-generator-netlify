@@ -1,62 +1,19 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useMemo } from 'react';
 import { Controls } from './components/Controls';
 import { PosterCanvas } from './components/PosterCanvas';
-import { PosterContent, PosterState, PosterStyle, Step, HistoryItem, PosterTheme } from './types';
+import { PinchZoom } from './components/PinchZoom';
+import { PosterContent, PosterState, PosterStyle, Step, HistoryItem } from './types';
 import { analyzeWarningText, generatePosterBackground } from './services/geminiService';
 import html2canvas from 'html2canvas';
 
-export const THEMES: PosterTheme[] = [
-  {
-    id: 'red',
-    name: '党建红',
-    primaryColor: '#DE2910',
-    secondaryColor: '#FFFF00',
-    backgroundColor: '#FFFBF0',
-    accentColor: '#DE2910'
-  },
-  {
-    id: 'blue',
-    name: '税务蓝',
-    primaryColor: '#0f2b5c',
-    secondaryColor: '#FFFFFF',
-    backgroundColor: '#F0F7FF',
-    accentColor: '#0f2b5c'
-  },
-  {
-    id: 'ink',
-    name: '水墨黑',
-    primaryColor: '#1a1a1a',
-    secondaryColor: '#D4AF37',
-    backgroundColor: '#F5F5F5',
-    accentColor: '#333333'
-  },
-  {
-    id: 'green',
-    name: '生态绿',
-    primaryColor: '#125227',
-    secondaryColor: '#FFFFFF',
-    backgroundColor: '#F2FFF5',
-    accentColor: '#125227'
-  }
-];
+// 配置层
+import { THEMES, findThemeById } from './config/themes';
+import { FONT_OPTIONS, DEFAULT_TITLE_FONT_FAMILY } from './config/fonts';
+import { TEXTURE_STYLES } from './config/textures';
+import { getUpcomingHoliday, getHolidayStylePatch, findHoliday } from './config/holidays';
+import { GENERAL_TEMPLATES } from './config/templates';
 
-export const TEXTURE_STYLES = [
-  { id: 'clouds', name: '祥云瑞气' },
-  { id: 'mountains', name: '巍巍青山' },
-  { id: 'bamboo', name: '高风亮节' },
-  { id: 'geometric', name: '现代几何' },
-  { id: 'paper', name: '宣纸质感' },
-  { id: 'city', name: '城市剪影' },
-];
-
-export const FONT_OPTIONS = [
-  { id: 'xbs', name: '小标宋', value: '"FZXiaoBiaoSong-B05S", "方正小标宋简体", "FZXiaoBiaoSong", "Songti SC", serif' },
-  { id: 'song', name: '标准宋体', value: '"Noto Serif SC", "SimSun", "Songti SC", serif' },
-  { id: 'hei', name: '现代黑体', value: '"Noto Sans SC", "SimHei", "Heiti SC", sans-serif' },
-  { id: 'kai', name: '传统楷体', value: '"KaiTi", "STKaiti", "Ma Shan Zheng", serif' },
-  { id: 'fang', name: '公文仿宋', value: '"FangSong", "STFangsong", serif' },
-  { id: 'calligraphy', name: '书法行书', value: '"Zhi Mang Xing", "Ma Shan Zheng", cursive' },
-];
+export { FONT_OPTIONS };
 
 const DEFAULT_STYLE: PosterStyle = {
   titleSize: 56,
@@ -64,19 +21,24 @@ const DEFAULT_STYLE: PosterStyle = {
   overlayOpacity: 0.2,
   textColor: '#000000',
   alignment: 'center',
-  fontFamily: FONT_OPTIONS[0].value, // Default to Songti
-  widthScale: 600, // Default width in px
-  heightScale: 960, // Default height in px
+  fontFamily: FONT_OPTIONS[0].value,
+  widthScale: 600,
+  heightScale: 960,
   theme: THEMES[0],
   textureStyle: 'clouds',
-  showSeal: true // Default to showing the seal
+  showSeal: true,
+  // 新字段默认值
+  layout: 'classic',
+  titleFontFamily: DEFAULT_TITLE_FONT_FAMILY,
+  sealText: '警示',
+  decorations: [],
 };
 
 function App() {
   // Input States
   const [inputTitle, setInputTitle] = useState('');
   const [inputBody, setInputBody] = useState('');
-  
+
   // App Logic States
   const [step, setStep] = useState<Step>(Step.INPUT);
   const [state, setState] = useState<PosterState>({
@@ -89,6 +51,7 @@ function App() {
 
   // UI State
   const [isZoomed, setIsZoomed] = useState(false);
+  const [isDownloading, setIsDownloading] = useState(false);
 
   // Visual Style Config
   const [styleConfig, setStyleConfig] = useState<PosterStyle>(DEFAULT_STYLE);
@@ -96,6 +59,9 @@ function App() {
   // History State
   const [history, setHistory] = useState<HistoryItem[]>([]);
   const [currentId, setCurrentId] = useState<string | null>(null);
+
+  // 节日推荐（自动检测临近节日）
+  const upcomingHoliday = useMemo(() => getUpcomingHoliday(new Date(), 30), []);
 
   // Load history from local storage on mount
   useEffect(() => {
@@ -105,40 +71,44 @@ function App() {
         const parsed = JSON.parse(saved);
         if (!Array.isArray(parsed)) return;
 
-        // CRITICAL MIGRATION FIX:
-        // Ensure all history items have a valid theme OBJECT, not just a string ID.
-        // If theme is missing or invalid, fallback to default.
+        // 迁移：兼容旧记录 + 回填新字段默认值
         const migrated = parsed.map((item: any) => {
-            let safeTheme = THEMES[0];
-            
-            // If theme is an object with an ID, try to find the up-to-date theme definition
-            if (item.styleConfig?.theme && typeof item.styleConfig.theme === 'object') {
-                const found = THEMES.find(t => t.id === item.styleConfig.theme.id);
-                if (found) safeTheme = found;
-            } 
-            // If theme is just a string ID (old version), find it
-            else if (typeof item.styleConfig?.theme === 'string') {
-                 const found = THEMES.find(t => t.id === item.styleConfig.theme);
-                 if (found) safeTheme = found;
-            }
+          const rawStyle = item.styleConfig || {};
+          let safeTheme = THEMES[0];
 
-            return {
-                ...item,
-                styleConfig: {
-                    ...(item.styleConfig || DEFAULT_STYLE),
-                    theme: safeTheme,
-                    textureStyle: item.styleConfig?.textureStyle || 'clouds',
-                    // Ensure fontFamily exists (migration for old records)
-                    fontFamily: item.styleConfig?.fontFamily || DEFAULT_STYLE.fontFamily,
-                    // Ensure showSeal exists (migration for old records), default to true
-                    showSeal: item.styleConfig?.showSeal !== undefined ? item.styleConfig.showSeal : true
-                }
-            };
+          if (rawStyle.theme && typeof rawStyle.theme === 'object') {
+            const found = THEMES.find((t) => t.id === rawStyle.theme.id);
+            if (found) {
+              safeTheme = found;
+            } else {
+              // 可能是节日主题（不在通用 THEMES 中），保留原值
+              safeTheme = rawStyle.theme;
+            }
+          } else if (typeof rawStyle.theme === 'string') {
+            safeTheme = findThemeById(rawStyle.theme);
+          }
+
+          return {
+            ...item,
+            styleConfig: {
+              ...DEFAULT_STYLE,
+              ...rawStyle,
+              theme: safeTheme,
+              textureStyle: rawStyle.textureStyle || 'clouds',
+              fontFamily: rawStyle.fontFamily || DEFAULT_STYLE.fontFamily,
+              showSeal: rawStyle.showSeal !== undefined ? rawStyle.showSeal : true,
+              // 新字段回填
+              layout: rawStyle.layout || DEFAULT_STYLE.layout,
+              titleFontFamily: rawStyle.titleFontFamily || DEFAULT_STYLE.titleFontFamily,
+              sealText: rawStyle.sealText || DEFAULT_STYLE.sealText,
+              decorations: Array.isArray(rawStyle.decorations) ? rawStyle.decorations : [],
+              holidayId: rawStyle.holidayId,
+            },
+          };
         });
         setHistory(migrated);
       } catch (e) {
-        console.error("Failed to parse history", e);
-        // If history is corrupt, clear it to prevent persistent crashes
+        console.error('Failed to parse history', e);
         localStorage.removeItem('poster_history');
       }
     }
@@ -150,34 +120,21 @@ function App() {
       try {
         localStorage.setItem('poster_history', JSON.stringify(items));
       } catch (e: any) {
-        // Handle QuotaExceededError (name varies by browser)
-        if (
-          e.name === 'QuotaExceededError' || 
-          e.name === 'NS_ERROR_DOM_QUOTA_REACHED' || 
-          e.code === 22
-        ) {
-          console.warn("LocalStorage quota exceeded. Trimming history to fit.");
-          
+        if (e.name === 'QuotaExceededError' || e.name === 'NS_ERROR_DOM_QUOTA_REACHED' || e.code === 22) {
+          console.warn('LocalStorage quota exceeded. Trimming history to fit.');
           if (items.length === 0) return;
-
-          // Create a copy to modify
           const newItems = [...items];
-          
-          // Strategy: Find the oldest item (last in array)
           const oldestIndex = newItems.length - 1;
           const oldestItem = newItems[oldestIndex];
-
-          // If the oldest item has an image, strip it first (user can regenerate)
           if (oldestItem.imageUrl) {
             newItems[oldestIndex] = { ...oldestItem, imageUrl: null };
-            saveWithQuotaManagement(newItems); // Retry with stripped image
+            saveWithQuotaManagement(newItems);
           } else {
-            // If it has no image, remove the item entirely
             newItems.pop();
-            saveWithQuotaManagement(newItems); // Retry with fewer items
+            saveWithQuotaManagement(newItems);
           }
         } else {
-          console.error("Failed to save history", e);
+          console.error('Failed to save history', e);
         }
       }
     };
@@ -188,45 +145,31 @@ function App() {
   }, [history]);
 
   const addToHistory = (
-    title: string, 
-    body: string, 
-    content: PosterContent, 
+    title: string,
+    body: string,
+    content: PosterContent,
     imageUrl: string | null,
     style: PosterStyle,
-    existingId: string | null = null
+    existingId: string | null = null,
   ) => {
     const timestamp = Date.now();
-    
+
     if (existingId) {
-      // Update existing
-      setHistory(prev => prev.map(item => {
-        if (item.id === existingId) {
-            return { ...item, title, body, content, imageUrl, styleConfig: style, timestamp };
-        }
-        return item;
-      }));
+      setHistory((prev) =>
+        prev.map((item) => (item.id === existingId ? { ...item, title, body, content, imageUrl, styleConfig: style, timestamp } : item)),
+      );
     } else {
-      // Create new
       const id = timestamp.toString();
-      const newItem: HistoryItem = {
-        id,
-        timestamp,
-        title,
-        body,
-        content,
-        imageUrl,
-        styleConfig: style
-      };
-      // Add to top, keep max 10 items (reduced from 20 to prevent rapid quota usage)
-      setHistory(prev => [newItem, ...prev].slice(0, 10));
+      const newItem: HistoryItem = { id, timestamp, title, body, content, imageUrl, styleConfig: style };
+      setHistory((prev) => [newItem, ...prev].slice(0, 10));
       setCurrentId(id);
     }
   };
 
   const handleDeleteHistory = (id: string) => {
-    setHistory(prev => prev.filter(item => item.id !== id));
+    setHistory((prev) => prev.filter((item) => item.id !== id));
     if (currentId === id) {
-        handleNew(); // Reset if deleting current
+      handleNew();
     }
   };
 
@@ -234,12 +177,13 @@ function App() {
     setCurrentId(item.id);
     setInputTitle(item.title);
     setInputBody(item.body);
-    // Ensure we are loading a styleConfig with a valid theme object
-    const safeStyle = {
-        ...item.styleConfig,
-        theme: item.styleConfig.theme || THEMES[0],
-        fontFamily: item.styleConfig.fontFamily || DEFAULT_STYLE.fontFamily,
-        showSeal: item.styleConfig.showSeal !== undefined ? item.styleConfig.showSeal : true
+    const safeStyle: PosterStyle = {
+      ...DEFAULT_STYLE,
+      ...item.styleConfig,
+      theme: item.styleConfig.theme || THEMES[0],
+      fontFamily: item.styleConfig.fontFamily || DEFAULT_STYLE.fontFamily,
+      showSeal: item.styleConfig.showSeal !== undefined ? item.styleConfig.showSeal : true,
+      decorations: Array.isArray(item.styleConfig.decorations) ? item.styleConfig.decorations : [],
     };
     setStyleConfig(safeStyle);
     setState({
@@ -247,7 +191,7 @@ function App() {
       imageUrl: item.imageUrl,
       isGeneratingText: false,
       isGeneratingImage: false,
-      error: null
+      error: null,
     });
     setStep(Step.PREVIEW);
   };
@@ -258,11 +202,11 @@ function App() {
     setInputBody('');
     setStyleConfig(DEFAULT_STYLE);
     setState({
-        content: null,
-        imageUrl: null,
-        isGeneratingText: false,
-        isGeneratingImage: false,
-        error: null,
+      content: null,
+      imageUrl: null,
+      isGeneratingText: false,
+      isGeneratingImage: false,
+      error: null,
     });
     setStep(Step.INPUT);
   };
@@ -274,112 +218,115 @@ function App() {
   };
 
   const handleClearImage = () => {
-    setState(prev => ({ ...prev, imageUrl: null }));
+    setState((prev) => ({ ...prev, imageUrl: null }));
+  };
+
+  // 一键套用节日主题
+  const handleApplyHoliday = (holidayId: string) => {
+    const holiday = findHoliday(holidayId);
+    if (!holiday) return;
+    const patch = getHolidayStylePatch(holiday);
+    setStyleConfig((prev) => ({ ...prev, ...patch }));
+  };
+
+  // 套用节日并自动填充模板文案
+  const handleApplyHolidayWithTemplate = (holidayId: string) => {
+    const holiday = findHoliday(holidayId);
+    if (!holiday) return;
+    const patch = getHolidayStylePatch(holiday);
+    const tpl = holiday.templates[0];
+    setStyleConfig((prev) => ({ ...prev, ...patch }));
+    if (tpl) {
+      setInputTitle(tpl.title);
+      setInputBody(tpl.body);
+    }
   };
 
   const handleGenerate = async () => {
     if (!inputTitle.trim() || !inputBody.trim()) return;
 
-    setState(prev => ({ ...prev, isGeneratingText: true, error: null }));
-    setCurrentId(null); 
+    setState((prev) => ({ ...prev, isGeneratingText: true, error: null }));
+    setCurrentId(null);
 
     try {
       const content = await analyzeWarningText(inputTitle, inputBody);
-      
-      setState(prev => ({ ...prev, content, isGeneratingText: false, isGeneratingImage: false, imageUrl: null }));
+
+      setState((prev) => ({ ...prev, content, isGeneratingText: false, isGeneratingImage: false, imageUrl: null }));
       setStep(Step.PREVIEW);
       addToHistory(inputTitle, inputBody, content, null, styleConfig, null);
-
     } catch (error: any) {
       console.error(error);
-      const errorMsg = error.message || "未知错误";
-      
-      // Explicit Alert for Mobile Users who might not see the error div
+      const errorMsg = error.message || '未知错误';
       alert(`生成失败: ${errorMsg}`);
-
-      setState(prev => ({ 
-        ...prev, 
-        isGeneratingText: false, 
-        isGeneratingImage: false, 
-        error: errorMsg 
-      }));
+      setState((prev) => ({ ...prev, isGeneratingText: false, isGeneratingImage: false, error: errorMsg }));
     }
   };
 
   const handleRegenerateImage = async () => {
     if (!state.content) return;
-    setState(prev => ({ ...prev, isGeneratingImage: true }));
+    setState((prev) => ({ ...prev, isGeneratingImage: true }));
     try {
-      const imageUrl = await generatePosterBackground(state.content.imagePrompt + ` variant ${Date.now()}`, styleConfig.theme, styleConfig.textureStyle);
-      
-      setState(prev => ({ ...prev, imageUrl, isGeneratingImage: false }));
-      
+      const imageUrl = await generatePosterBackground(
+        state.content.imagePrompt + ` variant ${Date.now()}`,
+        styleConfig.theme,
+        styleConfig.textureStyle,
+      );
+      setState((prev) => ({ ...prev, imageUrl, isGeneratingImage: false }));
       if (currentId && imageUrl) {
-          addToHistory(inputTitle, inputBody, state.content, imageUrl, styleConfig, currentId);
+        addToHistory(inputTitle, inputBody, state.content, imageUrl, styleConfig, currentId);
       }
     } catch (error: any) {
-       alert(`绘图失败: ${error.message}`);
-       setState(prev => ({ ...prev, isGeneratingImage: false }));
+      alert(`绘图失败: ${error.message}`);
+      setState((prev) => ({ ...prev, isGeneratingImage: false }));
     }
   };
 
   const handleDownloadImage = async () => {
     const element = document.getElementById('poster-capture-area');
     if (!element) {
-        alert("找不到海报内容，无法下载");
-        return;
+      alert('找不到海报内容，无法下载');
+      return;
     }
 
+    setIsDownloading(true);
     try {
-        // Calculate safe scale logic for Mobile Safari memory limits
-        const w = styleConfig.widthScale;
-        const h = styleConfig.heightScale;
-        let targetScale = 2; // Default High Res
-        
-        // Safety check: iOS Safari canvas limit (approx 16MP, but lower is safer for processing)
-        const totalPixels = (w * 2) * (h * 2);
-        if (totalPixels > 6000000) { // If > 6MP, reduce scale
-            targetScale = 1.5;
-        }
-        if (totalPixels > 10000000) { // If > 10MP, use 1:1
-            targetScale = 1;
-        }
+      const w = styleConfig.widthScale;
+      const h = styleConfig.heightScale;
+      let targetScale = 2;
 
-        const canvas = await html2canvas(element, {
-            scale: targetScale, 
-            useCORS: true, 
-            backgroundColor: null,
-            logging: false,
-            // CRITICAL FIX: Reset transforms on the clone. 
-            // The original element is scaled via CSS transform for preview fitting.
-            // We must capture it at 100% scale (none) to get the correct resolution.
-            onclone: (clonedDoc) => {
-                const el = clonedDoc.getElementById('poster-capture-area');
-                if (el) {
-                    el.style.transform = 'none';
-                    el.style.margin = '0';
-                    el.style.boxShadow = 'none'; // Optional: cleaner edge
-                }
-            }
-        });
+      const totalPixels = w * 2 * (h * 2);
+      if (totalPixels > 6000000) targetScale = 1.5;
+      if (totalPixels > 10000000) targetScale = 1;
 
-        const dataUrl = canvas.toDataURL('image/png');
-        
-        // Check for empty canvas
-        if (dataUrl === 'data:,') throw new Error("Canvas data is empty");
+      const canvas = await html2canvas(element, {
+        scale: targetScale,
+        useCORS: true,
+        backgroundColor: null,
+        logging: false,
+        onclone: (clonedDoc) => {
+          const el = clonedDoc.getElementById('poster-capture-area');
+          if (el) {
+            el.style.transform = 'none';
+            el.style.margin = '0';
+            el.style.boxShadow = 'none';
+          }
+        },
+      });
 
-        const link = document.createElement('a');
-        link.download = `poster-${Date.now()}.png`;
-        link.href = dataUrl;
-        
-        // Append to body is required for some mobile browsers to trigger click
-        document.body.appendChild(link);
-        link.click();
-        document.body.removeChild(link);
+      const dataUrl = canvas.toDataURL('image/png');
+      if (dataUrl === 'data:,') throw new Error('Canvas data is empty');
 
+      const link = document.createElement('a');
+      link.download = `poster-${Date.now()}.png`;
+      link.href = dataUrl;
+      document.body.appendChild(link);
+      link.click();
+      document.body.removeChild(link);
     } catch (err: any) {
-        console.error("Download failed", err);
-        alert(`下载图片失败: ${err.message || "请稍后重试"}`);
+      console.error('Download failed', err);
+      alert(`下载图片失败: ${err.message || '请稍后重试'}`);
+    } finally {
+      setIsDownloading(false);
     }
   };
 
@@ -387,63 +334,56 @@ function App() {
     setStep(Step.INPUT);
   };
 
-  // Determine if we should show the preview pane on mobile
-  // On Desktop it's always visible. On Mobile, only when content is generated.
   const hasContent = !!state.content;
 
   return (
-    // Main Container: No Window Scroll, Inner Scroll Only.
     <div className="h-screen w-full flex flex-col lg:flex-row bg-[#050C1A] overflow-hidden">
-      
-      {/* 
-         PREVIEW PANEL 
-         Mobile: Order 1 (Top). Height depends on content (0 if inputting, 40vh if previewing).
-         Desktop: Order 2 (Right). Height 100%.
-      */}
-      <div className={`
+      {/* PREVIEW PANEL */}
+      <div
+        className={`
           relative z-10 bg-[#050C1A] transition-all duration-300 ease-in-out shadow-2xl
           order-1 lg:order-2
           w-full lg:w-[500px] flex-shrink-0
-          ${hasContent ? 'h-[40vh] border-b border-white/10' : 'h-0 border-b-0'} lg:h-full lg:border-b-0 lg:border-l lg:border-white/10
+          ${hasContent ? 'h-[42vh] border-b border-white/10' : 'h-0 border-b-0'} lg:h-full lg:border-b-0 lg:border-l lg:border-white/10
           flex items-center justify-center
-      `}>
-         {/* Background Grid Pattern */}
-         <div className="absolute inset-0 z-0 opacity-20 pointer-events-none" 
-              style={{ backgroundImage: 'radial-gradient(#1e3a8a 1px, transparent 1px)', backgroundSize: '24px 24px' }}>
-         </div>
+        `}
+      >
+        <div
+          className="absolute inset-0 z-0 opacity-20 pointer-events-none"
+          style={{ backgroundImage: 'radial-gradient(#1e3a8a 1px, transparent 1px)', backgroundSize: '24px 24px' }}
+        />
 
-         {/* Only render PosterCanvas if content exists. */}
-         {/* If no content, on Desktop we show placeholder. On Mobile height is 0 so it's hidden. */}
-         {state.content && styleConfig ? (
-            <PosterCanvas 
-                id="poster-capture-area"
-                content={state.content}
-                imageUrl={state.imageUrl}
-                styleConfig={styleConfig}
-                isGeneratingImage={state.isGeneratingImage}
-                onClick={() => setIsZoomed(true)}
-            />
-         ) : (
-            <div className="text-center opacity-40 px-4">
-                <div className="w-24 h-32 border-2 border-dashed border-blue-500 rounded-lg mx-auto mb-4 flex items-center justify-center">
-                    <svg className="w-8 h-8 text-blue-500" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 16l4.586-4.586a2 2 0 012.828 0L16 16m-2-2l1.586-1.586a2 2 0 012.828 0L20 14m-6-6h.01M6 20h12a2 2 0 002-2V6a2 2 0 00-2-2H6a2 2 0 00-2 2v12a2 2 0 002 2z" />
-                    </svg>
-                </div>
-                <p className="text-blue-200 font-serif-sc">等待生成海报...</p>
-                <p className="text-blue-400/50 text-xs mt-2">或从“历史记录”加载</p>
+        {state.content && styleConfig ? (
+          <PosterCanvas
+            id="poster-capture-area"
+            content={state.content}
+            imageUrl={state.imageUrl}
+            styleConfig={styleConfig}
+            isGeneratingImage={state.isGeneratingImage}
+            onClick={() => setIsZoomed(true)}
+          />
+        ) : (
+          <div className="text-center opacity-40 px-4">
+            <div className="w-24 h-32 border-2 border-dashed border-blue-500 rounded-lg mx-auto mb-4 flex items-center justify-center">
+              <svg className="w-8 h-8 text-blue-500" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                <path
+                  strokeLinecap="round"
+                  strokeLinejoin="round"
+                  strokeWidth={2}
+                  d="M4 16l4.586-4.586a2 2 0 012.828 0L16 16m-2-2l1.586-1.586a2 2 0 012.828 0L20 14m-6-6h.01M6 20h12a2 2 0 002-2V6a2 2 0 00-2-2H6a2 2 0 00-2 2v12a2 2 0 002 2z"
+                />
+              </svg>
             </div>
-         )}
+            <p className="text-blue-200 font-serif-sc">等待生成海报...</p>
+            <p className="text-blue-400/50 text-xs mt-2">或从"历史记录"加载</p>
+          </div>
+        )}
       </div>
 
-      {/* 
-         CONTROLS PANEL
-         Mobile: Order 2 (Bottom). Takes remaining height. Scrollable.
-         Desktop: Order 1 (Left). Takes remaining width. Scrollable.
-      */}
+      {/* CONTROLS PANEL */}
       <div className="order-2 lg:order-1 flex-1 min-w-0 h-full overflow-y-auto custom-scrollbar p-4 relative z-0">
-        <Controls 
-          step={step} 
+        <Controls
+          step={step}
           inputTitle={inputTitle}
           setInputTitle={setInputTitle}
           inputBody={inputBody}
@@ -457,60 +397,54 @@ function App() {
           onClearImage={handleClearImage}
           isGeneratingImage={state.isGeneratingImage}
           onBackToEdit={handleBackToEdit}
-          
           history={history}
           onLoadHistory={handleLoadHistory}
           onDeleteHistory={handleDeleteHistory}
-          
           onNew={handleNew}
           onSave={handleManualSave}
           onDownload={handleDownloadImage}
-          
+          isDownloading={isDownloading}
           availableThemes={THEMES}
           availableTextures={TEXTURE_STYLES}
+          upcomingHoliday={upcomingHoliday}
+          onApplyHoliday={handleApplyHoliday}
+          onApplyHolidayWithTemplate={handleApplyHolidayWithTemplate}
+          generalTemplates={GENERAL_TEMPLATES}
         />
         {state.error && (
-            <div className="mt-4 p-3 bg-red-900/50 text-red-200 text-sm rounded border border-red-800">
-                {state.error}
-            </div>
+          <div className="mt-4 p-3 bg-red-900/50 text-red-200 text-sm rounded border border-red-800">{state.error}</div>
         )}
       </div>
 
       {/* FULL SCREEN ZOOM MODAL */}
       {isZoomed && state.content && (
         <div className="fixed inset-0 z-50 flex items-center justify-center p-4 lg:p-10">
-            {/* Backdrop */}
-            <div 
-                className="absolute inset-0 bg-black/90 backdrop-blur-sm"
-                onClick={() => setIsZoomed(false)}
-            ></div>
-            
-            {/* Modal Content */}
-            <div className="relative w-full h-full flex flex-col items-center justify-center pointer-events-none">
-                {/* Close Button */}
-                <button 
-                    onClick={() => setIsZoomed(false)}
-                    className="absolute top-0 right-0 lg:top-4 lg:right-4 z-50 p-2 text-white/70 hover:text-white bg-black/50 hover:bg-black/80 rounded-full transition-colors pointer-events-auto"
-                >
-                     <svg className="w-8 h-8" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
-                    </svg>
-                </button>
+          <div className="absolute inset-0 bg-black/90 backdrop-blur-sm" onClick={() => setIsZoomed(false)} />
 
-                {/* Scaled Poster */}
-                <div className="w-full h-full pointer-events-auto" onClick={(e) => e.stopPropagation()}>
-                    <PosterCanvas 
-                        id="poster-zoom-view" // Diff ID so we don't conflict with download
-                        content={state.content}
-                        imageUrl={state.imageUrl}
-                        styleConfig={styleConfig}
-                        isGeneratingImage={state.isGeneratingImage}
-                    />
-                </div>
+          <div className="relative w-full h-full flex flex-col items-center justify-center pointer-events-none">
+            <button
+              onClick={() => setIsZoomed(false)}
+              className="absolute top-0 right-0 lg:top-4 lg:right-4 z-50 p-2 text-white/70 hover:text-white bg-black/50 hover:bg-black/80 rounded-full transition-colors pointer-events-auto"
+            >
+              <svg className="w-8 h-8" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+              </svg>
+            </button>
+
+            <div className="w-full h-full pointer-events-auto" onClick={(e) => e.stopPropagation()}>
+              <PinchZoom className="w-full h-full">
+                <PosterCanvas
+                  id="poster-zoom-view"
+                  content={state.content}
+                  imageUrl={state.imageUrl}
+                  styleConfig={styleConfig}
+                  isGeneratingImage={state.isGeneratingImage}
+                />
+              </PinchZoom>
             </div>
+          </div>
         </div>
       )}
-
     </div>
   );
 }
