@@ -1,20 +1,116 @@
-<div align="center">
-<img width="1200" height="475" alt="GHBanner" src="https://github.com/user-attachments/assets/0aa67016-6eaf-458a-adb2-6e31a0763ed6" />
-</div>
+# 警示海报生成器（Reminder Poster Generator）
 
-# Run and deploy your AI Studio app
+一个纯前端、零后端依赖的中文警示/提醒海报生成工具，面向党建、纪检、安全生产、节日廉洁提醒等场景。输入标题和正文，即可生成可下载的竖版海报，支持节假日主题、多种版式与装饰，并对移动端做了专项优化。
 
-This contains everything you need to run your app locally.
+> 纯客户端运行，内容不经过任何服务器，历史记录保存在浏览器本地。
 
-View your app in AI Studio: https://ai.studio/apps/drive/1dxIqQWJXa-sWeeWRYaIeA1KxjM78QXNj
+## 功能特性
 
-## Run Locally
+### 节假日主题系统
+- 内置 **7 大法定节日**：元旦、春节、清明、劳动节、端午、中秋、国庆
+- 每个节日含专属配色方案、背景纹理、装饰元素、印章风格、文案模板
+- 内置 **2024–2030 农历查表**，自动检测临近节日，在编辑页顶部弹出推荐横幅，**一键套用**整套节日主题 + 模板文案
 
-**Prerequisites:**  Node.js
+### 海报样式
+- **13 种背景纹理**：6 通用（祥云/青山/竹/几何/宣纸/城市）+ 7 节日专属（灯笼/福字/柳枝/麦穗/龙舟/月夜/五星）
+- **4 种版式模板**：经典公文、横幅庆典、竖排侧栏、极简留白
+- **6 个可开关装饰元素**：四角花纹、飘带、灯笼、五星徽标、月亮、花纹边框
+- **6 款中文字体**（标题与正文可分别设置）：小标宋、宋体、黑体、楷体、仿宋、行书
+- 可调标题/正文字号、画布尺寸，并提供尺寸预设（朋友圈竖图、公众号方图、A4 打印）
 
+### 移动端优化
+- 富文本编辑器工具栏单行可横滑，触摸目标 ≥ 40px，修复了点击工具栏后光标丢失的问题
+- 预览页控制项**折叠分组**，减少滚动
+- 尺寸/字号滑块带**数值输入框**，方便精确调整
+- 全屏预览支持**双指缩放 + 拖拽**
+- 下载按钮带 loading 反馈，并针对 iOS Safari 的 canvas 内存上限做了自适应缩放
 
-1. Install dependencies:
-   `npm install`
-2. Set the `GEMINI_API_KEY` in [.env.local](.env.local) to your Gemini API key
-3. Run the app:
-   `npm run dev`
+### 其他
+- 历史记录（最多 10 条），自动保存到 `localStorage`，支持加载/删除
+- 富文本正文：加粗、斜体、下划线、对齐、标题层级、文字颜色、重点遮挡
+
+## 技术栈
+
+| 层 | 技术 |
+|----|------|
+| 框架 | React 18 + TypeScript（strict 模式） |
+| 构建 | Vite 5 |
+| 样式 | Tailwind CSS（CDN） |
+| 字体 | Google Fonts（Noto Serif SC / Noto Sans SC / Ma Shan Zheng / Zhi Mang Xing） |
+| 导出 | `html2canvas`（将 DOM 海报道具截图为 PNG） |
+| 持久化 | 浏览器 `localStorage` |
+
+> 本项目最初基于 Google AI Studio（Gemini）构建，已移除 AI 依赖，改为完全本地生成。
+
+## 本地运行
+
+**前置要求**：Node.js（建议 18+）
+
+```bash
+# 1. 安装依赖
+npm install
+
+# 2. 启动开发服务器
+npm run dev
+```
+
+浏览器打开终端输出的地址（默认 `http://localhost:5173`）即可。
+手机可在同一局域网下访问终端显示的 Network 地址。
+
+## 构建与部署
+
+```bash
+# 类型检查 + 生产构建，产物输出到 dist/
+npm run build
+
+# 本地预览构建产物
+npm run preview
+```
+
+### 部署到 Vercel
+本项目无需额外配置即可部署到 Vercel：
+- **Framework Preset**：Vite
+- **Build Command**：`npm run build`
+- **Output Directory**：`dist`
+
+推送到 GitHub 主分支后，Vercel 会自动触发部署。
+
+## 项目结构
+
+```
+├── App.tsx                  # 根组件：状态、历史、下载、节日检测
+├── index.html               # 入口（Tailwind CDN、字体、挂载点）
+├── index.tsx                # React DOM 挂载
+├── types.ts                 # 共享类型定义
+├── components/
+│   ├── Controls.tsx         # 控制面板（编辑/预览设置/历史）
+│   ├── PosterCanvas.tsx     # 海报渲染（缩放适配、印章）
+│   ├── SimpleEditor.tsx     # 富文本编辑器
+│   └── PinchZoom.tsx        # 全屏预览双指缩放容器
+├── config/
+│   ├── fonts.ts             # 字体选项
+│   ├── themes.ts            # 基础配色主题
+│   ├── textures.tsx         # 背景纹理（通用 + 节日）
+│   ├── holidays.ts          # 节日配置 + 农历查表 + 自动检测
+│   ├── layouts.tsx          # 4 种版式渲染器
+│   ├── decorations.tsx      # 装饰元素组件
+│   └── templates.ts         # 节日 / 通用文案模板
+└── services/
+    └── geminiService.ts     # 本地内容提取（已替换原 AI 调用）
+```
+
+## 使用说明
+
+1. **编辑内容**：输入标题，在富文本编辑器中撰写正文（可使用工具栏设置格式）
+2. **快速开始**：点击顶部的节日推荐横幅或模板卡片，一键套用主题与文案，再按需微调
+3. **生成海报**：点击「开始生成海报」进入预览
+4. **调整样式**：在折叠面板中切换版式、配色、纹理、字体、字号、装饰等
+5. **下载**：点击「下载海报图片」，自动保存为 PNG
+
+## 设计说明
+
+所有背景纹理与装饰元素均采用**纯 CSS 渐变 + 内联 data-URI SVG** 实现，刻意避免 SVG filter、`mix-blend-mode` 和跨域图片。这是为了规避 iOS Safari 下 `html2canvas` 导出时触发的「Operation Insecure」安全错误（详见提交历史中的相关修复）。
+
+## 许可
+
+私有项目，未授权开源。
