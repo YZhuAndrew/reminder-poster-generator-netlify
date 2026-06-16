@@ -110,7 +110,3 @@ npm run preview
 ## 设计说明
 
 所有背景纹理与装饰元素均采用**纯 CSS 渐变 + 内联 data-URI SVG** 实现，刻意避免 SVG filter、`mix-blend-mode` 和跨域图片。这是为了规避 iOS Safari 下 `html2canvas` 导出时触发的「Operation Insecure」安全错误（详见提交历史中的相关修复）。
-
-## 许可
-
-私有项目，未授权开源。
