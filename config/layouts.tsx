@@ -2,11 +2,20 @@ import React from 'react';
 import { PosterContent, PosterStyle, LayoutId } from '../types';
 
 export const LAYOUT_OPTIONS: { id: LayoutId; name: string; desc: string }[] = [
-  { id: 'classic', name: '经典公文', desc: '顶部标题 + 居中正文卡片' },
-  { id: 'banner', name: '横幅庆典', desc: '顶部彩色横幅 + 正文卡片' },
-  { id: 'sidebar', name: '竖排侧栏', desc: '左侧竖排标题 + 右侧正文' },
-  { id: 'minimal', name: '极简留白', desc: '大留白 + 细线条' },
+  { id: 'classic', name: '经典公文', desc: '左对齐巨字标题 · 编号正文' },
+  { id: 'banner', name: '横幅庆典', desc: '强调色横幅 · 暖纸正文' },
+  { id: 'sidebar', name: '竖排侧栏', desc: '竖排标题 · 暖纸正文' },
+  { id: 'minimal', name: '极简留白', desc: '大留白 · 细线条' },
 ];
+
+// 新设计令牌：由 PosterCanvas 从 accentScheme + backgroundId 解析后传入
+export interface PaperTokens {
+  paper: string;     // 纸张主色（海报底色）
+  paper2: string;    // 略深分隔色
+  ink: string;       // 正文墨色
+  inkSoft: string;   // 次级文字色
+  accent: string;    // 强调色（短线、编号、印章、小标题竖条）
+}
 
 interface LayoutRenderProps {
   content: PosterContent;
@@ -17,150 +26,174 @@ interface LayoutRenderProps {
     backgroundColor: string;
     accentColor: string;
   };
+  // 新设计令牌（向后兼容：缺失时由 themeColors 推导）
+  paper?: PaperTokens;
   sealNode: React.ReactNode;
 }
 
-// ---- 共享子组件 ----
+// 安全取令牌：缺省时从 themeColors 推导，保证旧调用路径不崩
+function useTokens(props: LayoutRenderProps): PaperTokens {
+  const { paper, themeColors } = props;
+  if (paper) return paper;
+  return {
+    paper: themeColors.backgroundColor || '#f0e8d4',
+    paper2: themeColors.backgroundColor || '#e7dcc0',
+    ink: '#1c1814',
+    inkSoft: '#5b5247',
+    accent: themeColors.accentColor || '#b3261e',
+  };
+}
 
+// ---- 共享子组件（重新设计） ----
+
+// 左对齐巨字标题 —— 整张海报的视觉锚点。去渐变、去居中、去阴影。
 const TitleBlock: React.FC<{
   text: string;
   size: number;
   color: string;
   fontFamily: string;
-  gradient?: [string, string];
-}> = ({ text, size, color, fontFamily, gradient }) => (
-  <div className="w-full text-center flex items-center justify-center px-4">
-    <h1
-      className="font-black text-center"
-      style={{
-        fontSize: `${size}px`,
-        color: gradient ? 'transparent' : color,
-        backgroundImage: gradient ? `linear-gradient(180deg, ${gradient[0]}, ${gradient[1]})` : undefined,
-        WebkitBackgroundClip: gradient ? 'text' : undefined,
-        backgroundClip: gradient ? 'text' : undefined,
-        textShadow: gradient ? undefined : '2px 2px 4px rgba(0,0,0,0.5), 0 0 10px rgba(0,0,0,0.2)',
-        fontFamily,
-        lineHeight: 1.2,
-        wordBreak: 'break-word',
-      }}
-    >
-      {text}
-    </h1>
-  </div>
+  align?: 'left' | 'center';
+}> = ({ text, size, color, fontFamily, align = 'left' }) => (
+  <h1
+    className="font-black"
+    style={{
+      fontSize: `${size}px`,
+      color,
+      fontFamily,
+      lineHeight: 1.08,
+      letterSpacing: '0.04em',
+      textAlign: align,
+      wordBreak: 'break-word',
+      margin: 0,
+    }}
+  >
+    {text}
+  </h1>
 );
 
-const PaperCard: React.FC<{
-  backgroundColor: string;
-  accentColor: string;
+// 报头元信息行：kicker（左）+ issue（右），编辑设计的「报头」
+const MetaRow: React.FC<{ kicker?: string; issue?: string; color: string }> = ({ kicker, issue, color }) => {
+  if (!kicker && !issue) return null;
+  return (
+    <div
+      className="flex items-baseline justify-between w-full"
+      style={{ fontSize: '13px', letterSpacing: '0.28em', color, fontWeight: 600, marginBottom: '22px' }}
+    >
+      <span>{kicker && <span style={{ color, marginRight: '6px' }}>●</span>}{kicker}</span>
+      {issue && <span>{issue}</span>}
+    </div>
+  );
+};
+
+// 强调色短线（左对齐）
+const AccentRule: React.FC<{ color: string; width?: number; centered?: boolean }> = ({ color, width = 56, centered }) => (
+  <hr
+    style={{
+      width: `${width}px`,
+      height: '4px',
+      background: color,
+      border: 0,
+      margin: centered ? '26px auto 0' : '26px 0 0',
+      borderRadius: '2px',
+    }}
+  />
+);
+
+// 正文区：不套卡片，直接在纸面上排布，靠留白与层级而非装饰。
+// 不再渲染底部落款行（poster__foot 已按需求移除）。
+const PaperBody: React.FC<{
   bodyText: string;
   bodySize: number;
-  footer: string | undefined;
-  footerSize: number;
   fontFamily: string;
+  ink: string;
   children?: React.ReactNode;
-}> = ({ backgroundColor, accentColor, bodyText, bodySize, footer, footerSize, fontFamily, children }) => (
-  <div
-    className="flex-1 w-full rounded-xl shadow-[0_10px_30px_rgba(0,0,0,0.3)] p-8 relative flex flex-col overflow-hidden transition-colors duration-300"
-    style={{ backgroundColor }}
-  >
-    <div className="flex-1 overflow-y-auto pr-2 custom-scrollbar">
-      <div
-        className="text-slate-900 leading-relaxed text-justify rich-text-content"
-        style={{ fontSize: `${bodySize}px`, fontFamily }}
-        dangerouslySetInnerHTML={{ __html: bodyText }}
-      />
-    </div>
-    {footer && (
-      <div
-        className="mt-4 pt-4 border-t text-center font-bold flex-shrink-0"
-        style={{ fontSize: `${footerSize}px`, color: accentColor, borderColor: `${accentColor}33` }}
-      >
-        {footer}
-      </div>
-    )}
+}> = ({ bodyText, bodySize, fontFamily, ink, children }) => (
+  <div className="flex-1 w-full relative flex flex-col min-h-0 pt-10">
+    <div
+      className="flex-1 overflow-hidden text-justify rich-text-content"
+      style={{ fontSize: `${bodySize}px`, fontFamily, color: ink, lineHeight: 2.0 }}
+      dangerouslySetInnerHTML={{ __html: bodyText }}
+    />
     {children}
   </div>
 );
 
-// ---- 版式渲染器 ----
+// ---- 版式渲染器（全部升级为暖纸编辑风，保留 4 种结构差异） ----
 
-// classic: 当前默认布局（顶部标题 + 正文卡片）
-const ClassicLayout: React.FC<LayoutRenderProps> = ({ content, styleConfig, themeColors, sealNode }) => (
-  <div className="absolute inset-0 z-10 flex flex-col items-center p-4 pt-8 pb-8">
-    <div className="w-full mb-6 z-20 flex-shrink-0">
+// classic: 编辑标准版（顶部页眉行 → 左对齐巨字标题 → 短线 → 正文 → 印章）
+const ClassicLayout: React.FC<LayoutRenderProps> = (props) => {
+  const { content, styleConfig, sealNode } = props;
+  const t = useTokens(props);
+  return (
+    <div className="absolute inset-0 z-10 flex flex-col" style={{ padding: '64px 56px 60px' }}>
+      <MetaRow kicker={styleConfig.kicker} issue={styleConfig.issue} color={t.inkSoft} />
       <TitleBlock
         text={content.headline}
         size={styleConfig.titleSize}
-        color={themeColors.secondaryColor}
+        color={t.ink}
         fontFamily={styleConfig.titleFontFamily}
-        gradient={styleConfig.theme.titleGradient}
       />
-    </div>
-    <PaperCard
-      backgroundColor={themeColors.backgroundColor}
-      accentColor={themeColors.accentColor}
-      bodyText={content.bodyText}
-      bodySize={styleConfig.bodySize}
-      footer={content.footer}
-      footerSize={Math.max(10, Math.round(styleConfig.bodySize * 0.6))}
-      fontFamily={styleConfig.fontFamily}
-    >
-      {sealNode}
-    </PaperCard>
-  </div>
-);
-
-// banner: 顶部彩色横幅（放大标题）+ 正文卡片
-const BannerLayout: React.FC<LayoutRenderProps> = ({ content, styleConfig, themeColors, sealNode }) => (
-  <div className="absolute inset-0 z-10 flex flex-col">
-    {/* 横幅区 */}
-    <div
-      className="flex-shrink-0 flex items-center justify-center px-6 pt-12 pb-8"
-      style={{ background: `linear-gradient(180deg, ${themeColors.primaryColor}, ${themeColors.primaryColor}cc)` }}
-    >
-      <TitleBlock
-        text={content.headline}
-        size={Math.round(styleConfig.titleSize * 1.1)}
-        color={themeColors.secondaryColor}
-        fontFamily={styleConfig.titleFontFamily}
-        gradient={styleConfig.theme.titleGradient}
-      />
-    </div>
-    {/* 装饰分隔线 */}
-    <div
-      className="flex-shrink-0 h-1.5 mx-6 -mt-1 rounded-full"
-      style={{ background: `linear-gradient(90deg, transparent, ${themeColors.secondaryColor}, transparent)` }}
-    />
-    {/* 正文 */}
-    <div className="flex-1 flex flex-col items-center p-4 pt-4 pb-8 min-h-0">
-      <PaperCard
-        backgroundColor={themeColors.backgroundColor}
-        accentColor={themeColors.accentColor}
+      <AccentRule color={t.accent} />
+      <PaperBody
         bodyText={content.bodyText}
         bodySize={styleConfig.bodySize}
-        footer={content.footer}
-        footerSize={Math.max(10, Math.round(styleConfig.bodySize * 0.6))}
         fontFamily={styleConfig.fontFamily}
+        ink={t.ink}
       >
         {sealNode}
-      </PaperCard>
+      </PaperBody>
     </div>
-  </div>
-);
+  );
+};
 
-// sidebar: 左侧竖排标题色条 + 右侧正文
-const SidebarLayout: React.FC<LayoutRenderProps> = ({ content, styleConfig, themeColors, sealNode }) => {
-  // 竖排标题：每个字一行
+// banner: 强调色横幅标题区 + 暖纸正文
+const BannerLayout: React.FC<LayoutRenderProps> = (props) => {
+  const { content, styleConfig, sealNode } = props;
+  const t = useTokens(props);
+  return (
+    <div className="absolute inset-0 z-10 flex flex-col">
+      {/* 强调色横幅标题区 */}
+      <div
+        className="flex-shrink-0 flex flex-col justify-end"
+        style={{ background: t.accent, padding: '52px 56px 30px' }}
+      >
+        <MetaRow kicker={styleConfig.kicker} issue={styleConfig.issue} color="rgba(255,255,255,0.85)" />
+        <TitleBlock
+          text={content.headline}
+          size={Math.round(styleConfig.titleSize * 0.92)}
+          color="#ffffff"
+          fontFamily={styleConfig.titleFontFamily}
+        />
+      </div>
+      {/* 暖纸正文 */}
+      <div className="flex-1 flex flex-col min-h-0" style={{ background: t.paper, padding: '36px 56px 56px' }}>
+        <PaperBody
+          bodyText={content.bodyText}
+          bodySize={styleConfig.bodySize}
+          fontFamily={styleConfig.fontFamily}
+          ink={t.ink}
+          // banner 正文区顶部留白已由 padding 提供
+        >
+          {/* 覆盖 PaperBody 的 pt-10：banner 已有上间距 */}
+          {sealNode}
+        </PaperBody>
+      </div>
+    </div>
+  );
+};
+
+// sidebar: 左侧强调色窄栏（竖排标题）+ 右侧暖纸正文
+const SidebarLayout: React.FC<LayoutRenderProps> = (props) => {
+  const { content, styleConfig, sealNode } = props;
+  const t = useTokens(props);
   const chars = content.headline.split('');
+  const barWidth = Math.max(60, styleConfig.titleSize * 0.95);
   return (
     <div className="absolute inset-0 z-10 flex">
-      {/* 左侧竖排色条 */}
+      {/* 左侧强调色竖排标题栏 */}
       <div
-        className="flex-shrink-0 flex flex-col items-center justify-center py-8 px-3"
-        style={{
-          background: `linear-gradient(180deg, ${themeColors.primaryColor}, ${themeColors.primaryColor}dd)`,
-          width: `${Math.max(56, styleConfig.titleSize * 0.9)}px`,
-        }}
+        className="flex-shrink-0 flex flex-col items-center justify-center"
+        style={{ background: t.accent, width: `${barWidth}px`, padding: '40px 0' }}
       >
         <div
           className="flex flex-col items-center leading-none"
@@ -171,9 +204,8 @@ const SidebarLayout: React.FC<LayoutRenderProps> = ({ content, styleConfig, them
               key={i}
               style={{
                 fontSize: `${styleConfig.titleSize}px`,
-                color: themeColors.secondaryColor,
-                textShadow: '1px 1px 3px rgba(0,0,0,0.4)',
-                marginBottom: i < chars.length - 1 ? `${styleConfig.titleSize * 0.15}px` : 0,
+                color: '#ffffff',
+                marginBottom: i < chars.length - 1 ? `${styleConfig.titleSize * 0.18}px` : 0,
               }}
             >
               {ch}
@@ -181,53 +213,48 @@ const SidebarLayout: React.FC<LayoutRenderProps> = ({ content, styleConfig, them
           ))}
         </div>
       </div>
-      {/* 右侧正文 */}
-      <div className="flex-1 flex flex-col items-stretch p-4 min-w-0">
-        <PaperCard
-          backgroundColor={themeColors.backgroundColor}
-          accentColor={themeColors.accentColor}
+      {/* 右侧暖纸正文 */}
+      <div className="flex-1 flex flex-col min-h-0" style={{ background: t.paper, padding: '56px 44px 56px' }}>
+        <MetaRow kicker={styleConfig.kicker} issue={styleConfig.issue} color={t.inkSoft} />
+        <PaperBody
           bodyText={content.bodyText}
           bodySize={styleConfig.bodySize}
-          footer={content.footer}
-          footerSize={Math.max(10, Math.round(styleConfig.bodySize * 0.6))}
           fontFamily={styleConfig.fontFamily}
+          ink={t.ink}
         >
           {sealNode}
-        </PaperCard>
+        </PaperBody>
       </div>
     </div>
   );
 };
 
-// minimal: 极简留白
-const MinimalLayout: React.FC<LayoutRenderProps> = ({ content, styleConfig, themeColors, sealNode }) => (
-  <div className="absolute inset-0 z-10 flex flex-col items-center p-8 pt-16 pb-16">
-    {/* 细线标题区 */}
-    <div className="w-full mb-8 z-20 flex-shrink-0 flex flex-col items-center">
+// minimal: 极简留白（最大留白、居中标题、最细线、最克制）
+const MinimalLayout: React.FC<LayoutRenderProps> = (props) => {
+  const { content, styleConfig, sealNode } = props;
+  const t = useTokens(props);
+  return (
+    <div className="absolute inset-0 z-10 flex flex-col items-center" style={{ padding: '88px 64px 72px' }}>
+      <MetaRow kicker={styleConfig.kicker} issue={styleConfig.issue} color={t.inkSoft} />
       <TitleBlock
         text={content.headline}
-        size={Math.round(styleConfig.titleSize * 0.95)}
-        color={themeColors.accentColor}
+        size={Math.round(styleConfig.titleSize * 0.92)}
+        color={t.ink}
         fontFamily={styleConfig.titleFontFamily}
+        align="center"
       />
-      <div
-        className="h-px w-16 mt-4"
-        style={{ background: themeColors.accentColor, opacity: 0.5 }}
-      />
+      <div style={{ width: '1px', height: '40px', background: t.accent, opacity: 0.6, margin: '30px 0 8px' }} />
+      <PaperBody
+        bodyText={content.bodyText}
+        bodySize={styleConfig.bodySize}
+        fontFamily={styleConfig.fontFamily}
+        ink={t.ink}
+      >
+        {sealNode}
+      </PaperBody>
     </div>
-    <PaperCard
-      backgroundColor={themeColors.backgroundColor}
-      accentColor={themeColors.accentColor}
-      bodyText={content.bodyText}
-      bodySize={styleConfig.bodySize}
-      footer={content.footer}
-      footerSize={Math.max(10, Math.round(styleConfig.bodySize * 0.6))}
-      fontFamily={styleConfig.fontFamily}
-    >
-      {sealNode}
-    </PaperCard>
-  </div>
-);
+  );
+};
 
 const LAYOUT_RENDERERS: Record<LayoutId, React.FC<LayoutRenderProps>> = {
   classic: ClassicLayout,

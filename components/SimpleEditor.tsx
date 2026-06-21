@@ -1,4 +1,4 @@
-import React, { useRef, useEffect } from 'react';
+import React, { useRef, useEffect, useState } from 'react';
 
 interface SimpleEditorProps {
   value: string;
@@ -8,214 +8,322 @@ interface SimpleEditorProps {
   fontFamily?: string;
 }
 
-// 保存/恢复选区，避免点击工具栏后丢失光标（移动端尤其重要）
-let savedRange: Range | null = null;
-
-function saveSelection() {
-  const sel = window.getSelection();
-  if (sel && sel.rangeCount > 0) {
-    savedRange = sel.getRangeAt(0).cloneRange();
+// 状态查询：判断当前选区是否已应用某格式（用于按钮高亮）
+function isFmt(cmd: string): boolean {
+  try {
+    return document.queryCommandState(cmd);
+  } catch {
+    return false;
   }
 }
 
-function restoreSelection(el: HTMLElement) {
-  if (savedRange && el) {
-    el.focus();
-    const sel = window.getSelection();
-    if (sel) {
-      sel.removeAllRanges();
-      sel.addRange(savedRange);
-    }
-  } else {
-    el.focus();
-  }
-}
+const COLORS = [
+  { c: '#1a1a1a', name: '墨黑' },
+  { c: '#b3261e', name: '朱红' },
+  { c: '#8a5a2b', name: '赭石' },
+  { c: '#1f5f8b', name: '靛蓝' },
+  { c: '#2d6a4f', name: '松绿' },
+];
 
 export const SimpleEditor: React.FC<SimpleEditorProps> = ({ value, onChange, placeholder, className, fontFamily }) => {
   const contentRef = useRef<HTMLDivElement>(null);
+  const wrapRef = useRef<HTMLDivElement>(null);
+  const savedRange = useRef<Range | null>(null);
+  const [bubble, setBubble] = useState<{ x: number; y: number } | null>(null);
+  const [active, setActive] = useState<Record<string, boolean>>({});
+  const [count, setCount] = useState(0);
 
-  // Initial load
+  // 初次挂载写入内容
   useEffect(() => {
-    if (contentRef.current && value && contentRef.current.innerHTML === '') {
-      contentRef.current.innerHTML = value;
+    if (contentRef.current && contentRef.current.innerHTML === '') {
+      contentRef.current.innerHTML = value || '';
+      syncCount();
     }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
-  // Sync external value to internal content
+  // 外部 value 变更（套用模板）且编辑器未聚焦时同步
   useEffect(() => {
     if (contentRef.current && document.activeElement !== contentRef.current) {
       if (contentRef.current.innerHTML !== value) {
-        contentRef.current.innerHTML = value;
+        contentRef.current.innerHTML = value || '';
+        syncCount();
       }
     }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [value]);
 
-  const exec = (command: string, value: string | undefined = undefined) => {
-    // 移动端：恢复之前保存的选区，再执行命令
-    if (contentRef.current) {
-      restoreSelection(contentRef.current);
-    }
-    document.execCommand('styleWithCSS', false, 'true');
-    document.execCommand(command, false, value);
+  const syncCount = () => {
+    const txt = contentRef.current ? contentRef.current.innerText.replace(/\s/g, '') : '';
+    setCount(txt.length);
+  };
 
+  const emit = () => {
     if (contentRef.current) {
       onChange(contentRef.current.innerHTML);
-      // 执行后重新保存选区，便于连续操作
-      saveSelection();
-    }
-    contentRef.current?.focus();
-  };
-
-  const handleInput = () => {
-    if (contentRef.current) {
-      onChange(contentRef.current.innerHTML);
+      syncCount();
     }
   };
 
-  // 编辑器获得焦点时保存选区
-  const handleMouseUp = () => {
-    saveSelection();
+  // 选区保存/恢复：始终基于编辑器内部 Range
+  const saveSel = () => {
+    const sel = window.getSelection();
+    if (sel && sel.rangeCount > 0) {
+      const r = sel.getRangeAt(0);
+      if (contentRef.current && contentRef.current.contains(r.commonAncestorContainer)) {
+        savedRange.current = r.cloneRange();
+      }
+    }
   };
-  const handleKeyUp = () => {
-    saveSelection();
+  const restoreSel = () => {
+    const r = savedRange.current;
+    const el = contentRef.current;
+    if (!el) return;
+    el.focus();
+    if (r) {
+      const sel = window.getSelection();
+      if (sel) {
+        sel.removeAllRanges();
+        sel.addRange(r);
+      }
+    }
   };
 
-  const ToolbarButton: React.FC<{ cmd?: string; arg?: string; icon: React.ReactNode; label: string; wide?: boolean; onCustom?: () => void }> = ({
-    cmd,
-    arg,
-    icon,
-    label,
-    wide,
-    onCustom,
-  }) => (
+  const exec = (cmd: string, val?: string) => {
+    restoreSel();
+    try {
+      document.execCommand('styleWithCSS', false, 'true');
+      document.execCommand(cmd, false, val);
+    } catch {
+      /* ignore */
+    }
+    saveSel();
+    refreshActive();
+    emit();
+  };
+
+  const refreshActive = () => {
+    setActive({
+      bold: isFmt('bold'),
+      italic: isFmt('italic'),
+      underline: isFmt('underline'),
+      justifyLeft: isFmt('justifyLeft'),
+      justifyCenter: isFmt('justifyCenter'),
+      justifyRight: isFmt('justifyRight'),
+    });
+  };
+
+  // 选区变化 → 决定是否显示气泡工具条
+  const handleSelChange = () => {
+    const sel = window.getSelection();
+    if (!sel || sel.isCollapsed || sel.rangeCount === 0) {
+      setBubble(null);
+      refreshActive();
+      return;
+    }
+    const r = sel.getRangeAt(0);
+    if (!contentRef.current || !contentRef.current.contains(r.commonAncestorContainer)) {
+      setBubble(null);
+      return;
+    }
+    const txt = sel.toString();
+    if (!txt || !txt.trim()) {
+      setBubble(null);
+      return;
+    }
+    const rect = r.getBoundingClientRect();
+    const wrapRect = wrapRef.current ? wrapRef.current.getBoundingClientRect() : { left: 0, top: 0 };
+    setBubble({
+      x: rect.left + rect.width / 2 - wrapRect.left,
+      y: rect.top - wrapRect.top,
+    });
+    refreshActive();
+  };
+
+  useEffect(() => {
+    document.addEventListener('selectionchange', handleSelChange);
+    return () => document.removeEventListener('selectionchange', handleSelChange);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
+
+  // 工具栏按钮：用 onMouseDown preventDefault 避免失焦
+  const TBtn: React.FC<{
+    cmd?: string;
+    val?: string;
+    label: string;
+    wide?: boolean;
+    fmtKey?: string;
+    children: React.ReactNode;
+  }> = ({ cmd, val, label, wide, fmtKey, children }) => (
     <button
       type="button"
-      // 用 onMouseDown + preventDefault 避免失焦；touchstart 适配移动端
-      onMouseDown={(e) => {
-        e.preventDefault();
-      }}
+      title={label}
+      className={`flex items-center justify-center rounded-md text-[#5b4f3d] transition-colors hover:bg-[#e4dcc8] flex-shrink-0 ${
+        wide ? 'px-2.5 min-h-[36px] text-xs font-bold gap-1' : 'w-8 h-8'
+      } ${fmtKey && active[fmtKey] ? 'bg-[#b3261e] text-white hover:bg-[#b3261e]' : ''}`}
+      onMouseDown={(e) => e.preventDefault()}
       onTouchStart={(e) => {
         e.preventDefault();
-        saveSelection();
+        saveSel();
       }}
       onClick={() => {
-        if (onCustom) onCustom();
-        else if (cmd) exec(cmd, arg);
+        if (cmd) exec(cmd, val);
       }}
-      className={`flex items-center justify-center rounded text-slate-700 transition-colors hover:bg-slate-200 active:bg-slate-300 flex-shrink-0 ${
-        wide ? 'px-2 min-h-[40px]' : 'w-10 h-10'
-      }`}
-      title={label}
     >
-      {icon}
+      {children}
     </button>
   );
 
-  const Divider = () => <div className="w-px h-7 bg-slate-300 mx-1 flex-shrink-0" />;
+  const Divider = () => <div className="w-px h-5 bg-[#d8cfb8] mx-1 flex-shrink-0" />;
 
   return (
-    <div className={`flex flex-col border border-blue-800 rounded-lg overflow-hidden bg-[#FFFBF0] shadow-inner ${className}`}>
-      {/* 工具栏：移动端可横滑 */}
-      <div className="bg-slate-100 border-b border-slate-300">
-        {/* 第一行：可横滑 */}
-        <div className="flex items-center gap-1 p-2 overflow-x-auto" style={{ scrollbarWidth: 'thin' }}>
-          <ToolbarButton cmd="bold" icon={<b className="font-serif text-lg">B</b>} label="加粗" />
-          <ToolbarButton cmd="italic" icon={<i className="font-serif text-lg">I</i>} label="斜体" />
-          <ToolbarButton cmd="underline" icon={<u className="font-serif text-lg">U</u>} label="下划线" />
-          <Divider />
-          <ToolbarButton
-            cmd="justifyLeft"
-            icon={
-              <svg className="w-5 h-5" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
-                <line x1="17" y1="10" x2="3" y2="10" />
-                <line x1="21" y1="6" x2="3" y2="6" />
-                <line x1="21" y1="14" x2="3" y2="14" />
-                <line x1="17" y1="18" x2="3" y2="18" />
-              </svg>
-            }
-            label="左对齐"
-          />
-          <ToolbarButton
-            cmd="justifyCenter"
-            icon={
-              <svg className="w-5 h-5" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
-                <line x1="21" y1="10" x2="3" y2="10" />
-                <line x1="21" y1="6" x2="3" y2="6" />
-                <line x1="21" y1="14" x2="3" y2="14" />
-                <line x1="21" y1="18" x2="3" y2="18" />
-              </svg>
-            }
-            label="居中"
-          />
-          <Divider />
-          <ToolbarButton cmd="formatBlock" arg="H2" wide icon={<span className="font-bold text-sm whitespace-nowrap">大标题</span>} label="大标题" />
-          <ToolbarButton cmd="formatBlock" arg="H3" wide icon={<span className="font-bold text-xs whitespace-nowrap">小标题</span>} label="小标题" />
-          <ToolbarButton cmd="formatBlock" arg="P" wide icon={<span className="text-xs whitespace-nowrap">正文</span>} label="普通正文" />
-          <Divider />
-          {/* 颜色快选 */}
-          <ToolbarButton cmd="foreColor" arg="#DE2910" icon={<div className="w-6 h-6 bg-[#DE2910] rounded shadow-sm border border-slate-300" />} label="中国红" />
-          <ToolbarButton cmd="foreColor" arg="#000000" icon={<div className="w-6 h-6 bg-black rounded shadow-sm border border-slate-300" />} label="黑色" />
-          <ToolbarButton cmd="foreColor" arg="#D4AF37" icon={<div className="w-6 h-6 bg-[#D4AF37] rounded shadow-sm border border-slate-300" />} label="金色" />
-          <ToolbarButton cmd="foreColor" arg="#125227" icon={<div className="w-6 h-6 bg-[#125227] rounded shadow-sm border border-slate-300" />} label="森林绿" />
-          {/* 自定义颜色 */}
-          <ToolbarButton
-            label="自定义颜色"
-            icon={
-              <input
-                type="color"
-                className="w-6 h-6 p-0 border-0 rounded overflow-hidden cursor-pointer"
-                onChange={(e) => exec('foreColor', e.target.value)}
-                onClick={(e) => {
-                  e.stopPropagation();
-                  saveSelection();
-                }}
-              />
-            }
-          />
-          <Divider />
-          <ToolbarButton
-            cmd="removeFormat"
-            icon={
-              <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
-              </svg>
-            }
-            label="清除格式"
-          />
-          <ToolbarButton
-            cmd="backColor"
-            arg="black"
-            wide
-            icon={
-              <div className="flex items-center gap-1 whitespace-nowrap">
-                <div className="w-3 h-3 bg-black border border-slate-400" />
-                <span className="text-[10px]">遮挡</span>
-              </div>
-            }
-            label="重点遮挡（黑底）"
-          />
+    <div ref={wrapRef} className={`relative flex flex-col border border-slate-300 rounded-lg overflow-hidden bg-[#fbf8f1] ${className}`}>
+      {/* 固定工具栏（分组、浅色、可横滑） */}
+      <div className="flex items-center gap-0.5 p-1.5 bg-[#f1ece2] border-b border-[#e3dcca] overflow-x-auto" style={{ scrollbarWidth: 'thin' }}>
+        <TBtn cmd="bold" fmtKey="bold" label="加粗 (Ctrl+B)">
+          <b className="font-serif text-base">B</b>
+        </TBtn>
+        <TBtn cmd="italic" fmtKey="italic" label="斜体">
+          <i className="font-serif text-base">I</i>
+        </TBtn>
+        <TBtn cmd="underline" fmtKey="underline" label="下划线">
+          <u className="font-serif text-base">U</u>
+        </TBtn>
+        <Divider />
+        <TBtn cmd="justifyLeft" fmtKey="justifyLeft" label="左对齐">
+          <svg className="w-4 h-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round">
+            <line x1="17" y1="6" x2="3" y2="6" /><line x1="21" y1="12" x2="3" y2="12" /><line x1="17" y1="18" x2="3" y2="18" />
+          </svg>
+        </TBtn>
+        <TBtn cmd="justifyCenter" fmtKey="justifyCenter" label="居中">
+          <svg className="w-4 h-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round">
+            <line x1="18" y1="6" x2="6" y2="6" /><line x1="21" y1="12" x2="3" y2="12" /><line x1="18" y1="18" x2="6" y2="18" />
+          </svg>
+        </TBtn>
+        <TBtn cmd="justifyRight" fmtKey="justifyRight" label="右对齐">
+          <svg className="w-4 h-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round">
+            <line x1="21" y1="6" x2="7" y2="6" /><line x1="21" y1="12" x2="3" y2="12" /><line x1="21" y1="18" x2="7" y2="18" />
+          </svg>
+        </TBtn>
+        <Divider />
+        <TBtn cmd="formatBlock" val="H2" wide label="大标题"><span>大标题</span></TBtn>
+        <TBtn cmd="formatBlock" val="H3" wide label="小标题"><span>小标题</span></TBtn>
+        <TBtn cmd="formatBlock" val="P" wide label="正文"><span>正文</span></TBtn>
+        <Divider />
+        {/* 颜色色板 */}
+        <div className="flex gap-0.5">
+          {COLORS.map((c) => (
+            <button
+              key={c.c}
+              type="button"
+              title={c.name}
+              className="flex items-center justify-center rounded-md w-8 h-8 hover:bg-[#e4dcc8] flex-shrink-0"
+              onMouseDown={(e) => e.preventDefault()}
+              onTouchStart={(e) => {
+                e.preventDefault();
+                saveSel();
+              }}
+              onClick={() => exec('foreColor', c.c)}
+            >
+              <span className="w-4 h-4 rounded" style={{ background: c.c, boxShadow: 'inset 0 0 0 1px rgba(0,0,0,0.25)' }} />
+            </button>
+          ))}
+          <label className="flex items-center justify-center rounded-md w-8 h-8 hover:bg-[#e4dcc8] cursor-pointer flex-shrink-0 relative" title="自定义颜色">
+            <span className="w-4 h-4 rounded" style={{ background: 'conic-gradient(red,orange,yellow,lime,cyan,blue,magenta,red)', boxShadow: 'inset 0 0 0 1px rgba(0,0,0,0.25)' }} />
+            <input
+              type="color"
+              className="absolute inset-0 opacity-0 cursor-pointer"
+              onMouseDown={(e) => e.preventDefault()}
+              onChange={(e) => exec('foreColor', e.target.value)}
+            />
+          </label>
         </div>
+        <Divider />
+        <TBtn cmd="removeFormat" label="清除格式">
+          <svg className="w-4 h-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+            <path d="M4 7h16M9 7l1 13M15 7l-1 13M5 7l1 13a2 2 0 0 0 2 2h8a2 2 0 0 0 2-2l1-13" />
+            <line x1="9" y1="3" x2="15" y2="3" />
+          </svg>
+        </TBtn>
       </div>
 
-      {/* Editable Area */}
-      <div className="relative group">
+      {/* 编辑区：可滚动 + 可拖拽调整高度 */}
+      <div className="relative">
         <div
           ref={contentRef}
           contentEditable
-          onInput={handleInput}
-          onMouseUp={handleMouseUp}
-          onKeyUp={handleKeyUp}
-          className="w-full p-4 text-slate-900 focus:outline-none leading-relaxed [&_ul]:list-disc [&_ul]:pl-5 [&_ol]:list-decimal [&_ol]:pl-5 [&_h2]:text-2xl [&_h2]:font-bold [&_h2]:my-2 [&_h2]:text-[#DE2910] [&_h3]:text-xl [&_h3]:font-bold [&_h3]:my-1"
+          suppressContentEditableWarning
+          onInput={() => {
+            emit();
+            refreshActive();
+          }}
+          onMouseUp={() => {
+            saveSel();
+            handleSelChange();
+          }}
+          onKeyUp={() => {
+            saveSel();
+            handleSelChange();
+          }}
+          onBlur={() => setTimeout(() => setBubble(null), 120)}
+          className="w-full px-4 py-3 text-[#2b2622] focus:outline-none text-justify [&_ul]:list-disc [&_ul]:pl-5 [&_ol]:list-decimal [&_ol]:pl-5 [&_h2]:text-xl [&_h2]:font-black [&_h2]:my-1 [&_h2]:text-[#b3261e] [&_h2]:pl-2 [&_h2]:border-l-4 [&_h2]:border-[#b3261e] [&_h3]:text-lg [&_h3]:font-bold [&_h3]:my-1"
           style={{
-            minHeight: '180px',
+            minHeight: '120px',
+            maxHeight: '220px',
+            overflowY: 'auto',
+            resize: 'vertical',
+            fontSize: '15px',
+            lineHeight: 1.85,
             fontFamily: fontFamily || '"Noto Serif SC", serif',
-            // 移动端：放大触摸字号，避免 iOS 自动缩放
             WebkitTextSizeAdjust: '100%',
           }}
         />
         {value === '' && (
-          <div className="absolute top-4 left-4 pointer-events-none text-slate-400 italic">{placeholder}</div>
+          <div className="absolute top-3 left-4 pointer-events-none text-[#b3a98f]">{placeholder}</div>
         )}
+
+        {/* 选中文字时的浮动气泡工具条 */}
+        {bubble && (
+          <div
+            className="absolute z-50 flex items-center gap-0.5 bg-[#1f2738] rounded-lg p-1 shadow-xl"
+            style={{ left: bubble.x, top: bubble.y, transform: 'translate(-50%, -120%)', whiteSpace: 'nowrap' }}
+          >
+            <button
+              className={`flex items-center justify-center rounded-md w-7 h-7 ${active.bold ? 'bg-[#b3261e]' : 'hover:bg-white/10'} text-white`}
+              onMouseDown={(e) => e.preventDefault()}
+              onClick={() => exec('bold')}
+              title="加粗"
+            >
+              <b className="font-serif text-sm">B</b>
+            </button>
+            <button
+              className={`flex items-center justify-center rounded-md w-7 h-7 ${active.italic ? 'bg-[#b3261e]' : 'hover:bg-white/10'} text-white`}
+              onMouseDown={(e) => e.preventDefault()}
+              onClick={() => exec('italic')}
+              title="斜体"
+            >
+              <i className="font-serif text-sm">I</i>
+            </button>
+            <div className="w-px h-4 bg-white/20 mx-0.5" />
+            {COLORS.slice(0, 4).map((c) => (
+              <button
+                key={c.c}
+                className="flex items-center justify-center rounded-md w-7 h-7 hover:bg-white/10"
+                onMouseDown={(e) => e.preventDefault()}
+                onClick={() => exec('foreColor', c.c)}
+                title={c.name}
+              >
+                <span className="w-3.5 h-3.5 rounded" style={{ background: c.c, boxShadow: 'inset 0 0 0 1px rgba(255,255,255,0.3)' }} />
+              </button>
+            ))}
+          </div>
+        )}
+      </div>
+
+      {/* 底栏：字数统计 */}
+      <div className="flex items-center justify-between px-3 py-1.5 bg-[#f6f1e6] border-t border-[#e8e0cd] text-[11px] text-[#9a8e72]">
+        <span>选中文字可弹出快捷格式条</span>
+        <span>{count} 字</span>
       </div>
     </div>
   );

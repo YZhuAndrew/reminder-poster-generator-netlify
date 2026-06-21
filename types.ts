@@ -48,6 +48,11 @@ export interface PosterStyle {
   sealText: string;             // 印章文字（解决原先硬编码"横税纪检"）
   decorations: string[];        // 开启的装饰元素 id 列表
   holidayId?: string;           // 当前套用的节日（可选）
+  // —— 重新设计新增字段（全部可选，旧记录回填默认值）——
+  accentScheme?: string;        // 强调色方案 id（朱红/赭石/靛蓝/松绿/墨黑/紫绛）
+  backgroundId?: string;        // 底色 id（暖纸/米白/纯白/浅青/浅墨/象牙）
+  kicker?: string;              // 页眉左标签（纯中文）
+  issue?: string;               // 页眉右期号
 }
 
 export interface HistoryItem {

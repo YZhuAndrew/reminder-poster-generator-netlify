@@ -1,9 +1,10 @@
 import React, { useState } from 'react';
 import { PosterStyle, PosterContent, HistoryItem, PosterTheme, Step, HolidayConfig } from '../types';
 import { SimpleEditor } from './SimpleEditor';
-import { FONT_OPTIONS } from '../App';
+import { FONT_OPTIONS } from '../config/fonts';
 import { LAYOUT_OPTIONS } from '../config/layouts';
 import { DECORATION_OPTIONS } from '../config/decorations';
+import { ACCENT_SCHEMES, BACKGROUNDS } from '../config/themes';
 import { findHoliday } from '../config/holidays';
 import { UpcomingHoliday } from '../config/holidays';
 import { HolidayTemplate } from '../types';
@@ -327,45 +328,65 @@ export const Controls: React.FC<ControlsProps> = ({
         />
       </CollapsibleSection>
 
-      {/* 折叠分组：配色（默认展开） */}
-      <CollapsibleSection title="🎨 配色方案" defaultOpen={true}>
-        <div className="grid grid-cols-4 gap-2">
-          {availableThemes.map((theme) => (
+      {/* 折叠分组：强调色方案（默认展开） */}
+      <CollapsibleSection title="🎨 强调色方案" defaultOpen={true}>
+        <div className="grid grid-cols-3 gap-2">
+          {ACCENT_SCHEMES.map((scheme) => (
             <button
-              key={theme.id}
-              onClick={() => handleChange('theme', theme)}
-              className={`h-12 rounded border flex flex-col items-center justify-center transition-all min-h-[48px] ${
-                styleConfig.theme?.id === theme.id ? 'border-white ring-2 ring-blue-500 scale-105' : 'border-white/10 opacity-70 hover:opacity-100'
+              key={scheme.id}
+              onClick={() => handleChange('accentScheme', scheme.id)}
+              className={`flex items-center gap-2 p-2 rounded border text-left transition-all min-h-[44px] ${
+                styleConfig.accentScheme === scheme.id ? 'border-white ring-1 ring-blue-500 bg-white/5' : 'border-white/10 opacity-70 hover:opacity-100'
               }`}
-              style={{ backgroundColor: theme.primaryColor }}
-              title={theme.name}
+              title={scheme.hint}
             >
-              <span className="text-[10px] font-bold" style={{ color: theme.secondaryColor }}>
-                {theme.name}
+              <span className="w-5 h-5 rounded flex-shrink-0" style={{ background: scheme.accent }} />
+              <span className="flex flex-col min-w-0">
+                <span className="text-xs font-bold text-white truncate">{scheme.name}</span>
+                <span className="text-[10px] text-blue-400 truncate">{scheme.hint}</span>
               </span>
             </button>
           ))}
         </div>
       </CollapsibleSection>
 
-      {/* 折叠分组：纹理（分组展示通用/节日） */}
-      <CollapsibleSection title="🌫️ 背景纹理" defaultOpen={false}>
-        <div className="text-[10px] text-blue-400 mb-1.5 uppercase tracking-wide">通用</div>
-        <div className="grid grid-cols-3 gap-2 mb-3">
-          {availableTextures
-            .filter((t) => !t.group || t.group === 'general')
-            .map((tex) => (
-              <TextureButton key={tex.id} tex={tex} active={styleConfig.textureStyle === tex.id} onChange={handleChange} onClearImage={onClearImage} />
-            ))}
-        </div>
-        <div className="text-[10px] text-blue-400 mb-1.5 uppercase tracking-wide">节日专属</div>
+      {/* 折叠分组：底色（与强调色独立搭配） */}
+      <CollapsibleSection title="🗂️ 底色" defaultOpen={false}>
         <div className="grid grid-cols-3 gap-2">
-          {availableTextures
-            .filter((t) => t.group === 'holiday')
-            .map((tex) => (
-              <TextureButton key={tex.id} tex={tex} active={styleConfig.textureStyle === tex.id} onChange={handleChange} onClearImage={onClearImage} />
-            ))}
+          {BACKGROUNDS.map((bg) => (
+            <button
+              key={bg.id}
+              onClick={() => handleChange('backgroundId', bg.id)}
+              className={`flex items-center gap-2 p-2 rounded border text-left transition-all min-h-[44px] ${
+                styleConfig.backgroundId === bg.id ? 'border-white ring-1 ring-blue-500 bg-white/5' : 'border-white/10 opacity-70 hover:opacity-100'
+              }`}
+              title={bg.name}
+            >
+              <span className="w-5 h-5 rounded flex-shrink-0 border border-black/20" style={{ background: bg.paper }} />
+              <span className="text-xs font-bold text-white truncate">{bg.name}</span>
+            </button>
+          ))}
         </div>
+      </CollapsibleSection>
+
+      {/* 折叠分组：报头信息（页眉） */}
+      <CollapsibleSection title="📰 报头信息" defaultOpen={false}>
+        <label className="text-[10px] text-blue-400 mb-1.5 uppercase tracking-wide block">页眉标签（左）</label>
+        <input
+          type="text"
+          value={styleConfig.kicker || ''}
+          onChange={(e) => handleChange('kicker', e.target.value)}
+          placeholder="如：廉洁提醒"
+          className="w-full px-3 py-2 mb-3 rounded bg-[#0a1628] border border-blue-800 text-sm text-white focus:outline-none focus:border-blue-500"
+        />
+        <label className="text-[10px] text-blue-400 mb-1.5 uppercase tracking-wide block">期号（右）</label>
+        <input
+          type="text"
+          value={styleConfig.issue || ''}
+          onChange={(e) => handleChange('issue', e.target.value)}
+          placeholder="如：第 001 期"
+          className="w-full px-3 py-2 rounded bg-[#0a1628] border border-blue-800 text-sm text-white focus:outline-none focus:border-blue-500"
+        />
       </CollapsibleSection>
 
       {/* 折叠分组：字体与字号 */}
@@ -428,12 +449,9 @@ export const Controls: React.FC<ControlsProps> = ({
 
       {/* 折叠分组：装饰与印章 */}
       <CollapsibleSection title="🎊 装饰与印章" defaultOpen={false}>
-        {/* 印章开关（文字固定为"横税纪检"） */}
+        {/* 印章开关 */}
         <div className="flex items-center justify-between py-2 border border-blue-800/50 rounded bg-blue-900/20 px-3 mb-3">
-          <div className="flex flex-col">
-            <span className="text-sm text-blue-200">显示印章</span>
-            <span className="text-[10px] text-blue-400">固定文字「横税纪检」</span>
-          </div>
+          <span className="text-sm text-blue-200">显示印章</span>
           <button
             onClick={() => handleChange('showSeal', !styleConfig.showSeal)}
             className={`w-12 h-6 rounded-full relative transition-colors duration-200 min-h-[40px] ${
@@ -447,6 +465,17 @@ export const Controls: React.FC<ControlsProps> = ({
             />
           </button>
         </div>
+
+        {/* 印章文字（可编辑，2-6 字） */}
+        <label className="text-[10px] text-blue-400 mb-1.5 uppercase tracking-wide block">印章文字（2-6 字）</label>
+        <input
+          type="text"
+          value={styleConfig.sealText || ''}
+          maxLength={6}
+          onChange={(e) => handleChange('sealText', e.target.value)}
+          placeholder="如：廉洁 / 纪检 / 清风"
+          className="w-full px-3 py-2 mb-3 rounded bg-[#0a1628] border border-blue-800 text-sm text-white focus:outline-none focus:border-blue-500"
+        />
 
         <label className="text-[10px] text-blue-400 mb-1.5 uppercase tracking-wide block">装饰元素</label>
         <div className="grid grid-cols-3 gap-2">
@@ -518,11 +547,11 @@ export const Controls: React.FC<ControlsProps> = ({
         </div>
       </div>
 
-      {/* 节日推荐横幅 */}
-      {renderHolidayBanner()}
+      {/* 节日推荐横幅 —— 暂停节日系统，隐藏入口（保留代码以后启用） */}
+      {/* {renderHolidayBanner()} */}
 
-      {/* 快速模板入口 */}
-      {renderHolidayTemplates()}
+      {/* 快速模板入口 —— 暂停节日系统，隐藏入口（保留代码以后启用） */}
+      {/* {renderHolidayTemplates()} */}
 
       <div className="space-y-4 mb-4">
         <div>

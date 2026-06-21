@@ -29,11 +29,16 @@ const DEFAULT_STYLE: PosterStyle = {
   theme: THEMES[0],
   textureStyle: 'clouds',
   showSeal: true,
-  // 新字段默认值
+  // 版式与印章
   layout: 'classic',
   titleFontFamily: DEFAULT_TITLE_FONT_FAMILY,
-  sealText: '警示',
+  sealText: '廉洁',
   decorations: [],
+  // 重新设计新增字段
+  accentScheme: 'party',       // 默认朱红强调色
+  backgroundId: 'paper',       // 默认暖纸底色
+  kicker: '廉洁提醒',           // 页眉左标签（纯中文）
+  issue: '第 001 期',           // 页眉右期号
 };
 
 function App() {
@@ -105,6 +110,11 @@ function App() {
               sealText: rawStyle.sealText || DEFAULT_STYLE.sealText,
               decorations: Array.isArray(rawStyle.decorations) ? rawStyle.decorations : [],
               holidayId: rawStyle.holidayId,
+              // 重新设计新增字段回填（旧记录无则用默认）
+              accentScheme: rawStyle.accentScheme || DEFAULT_STYLE.accentScheme,
+              backgroundId: rawStyle.backgroundId || DEFAULT_STYLE.backgroundId,
+              kicker: rawStyle.kicker || DEFAULT_STYLE.kicker,
+              issue: rawStyle.issue || DEFAULT_STYLE.issue,
             },
           };
         });
