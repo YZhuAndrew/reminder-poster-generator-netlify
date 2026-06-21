@@ -10,10 +10,10 @@ import React from 'react';
 const SITE_URL = 'https://hsjj.netlify.app';
 
 const FEATURES: { icon: string; title: string; desc: string }[] = [
-  { icon: '🎉', title: '节假日主题', desc: '7 大法定节日配色、纹理、装饰、文案一键套用' },
-  { icon: '🎨', title: '多版式多纹理', desc: '4 种版式 + 13 种背景纹理 + 6 款中文字体' },
-  { icon: '✍️', title: '富文本编辑', desc: '加粗/对齐/标题/颜色/重点遮挡，所见即所得' },
-  { icon: '📱', title: '移动端优化', desc: '触摸友好工具栏、全屏双指缩放、iOS 自适应' },
+  { icon: '🎨', title: '暖纸编辑风', desc: '左对齐巨字标题 · 强调色短线 · 编号要点，4 种版式可选' },
+  { icon: '🌈', title: '强调色 + 底色', desc: '6 种强调色 × 6 种底色自由搭配，适配不同主题' },
+  { icon: '🔤', title: '真实中文字体', desc: '宋体巨字 / 小薇刊头 / 思源黑体 / 青铜黄油，4 款可加载' },
+  { icon: '✍️', title: '富文本编辑', desc: '气泡工具条 · 分组工具栏 · 字数统计，所见即所得' },
 ];
 
 // 使用公共二维码服务生成当前部署地址的二维码（图片，便于扫码）
@@ -101,7 +101,7 @@ export const IntroPanel: React.FC = () => {
           <ol className="space-y-2.5">
             {[
               { n: '1', t: '输入内容', d: '填写标题，在编辑器撰写正文' },
-              { n: '2', t: '套用主题', d: '点击节日横幅或模板快速套用' },
+              { n: '2', t: '选配色版式', d: '挑强调色、底色、字体、版式' },
               { n: '3', t: '下载海报', d: '调整样式后一键导出 PNG' },
             ].map((s) => (
               <li key={s.n} className="flex items-start gap-3">
