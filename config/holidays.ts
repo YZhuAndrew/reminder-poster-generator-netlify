@@ -255,12 +255,15 @@ export function getUpcomingHoliday(
  *
  * 关键：必须同时写入 accentScheme + backgroundId，否则新设计的 PosterCanvas
  * 仍按旧 accentScheme/backgroundId 渲染，导致"主题对象变了但纸张配色没变"的割裂。
+ *
+ * 注意：只改配色 + 印章文字 + 版式，**不改装饰/边框**。
+ * 装饰（莲花水印/青竹/清水/宝相）和边框（双线装裱）是全局默认视觉骨架，
+ * 任何模板套用都要保留，不被节日配置里陈旧的 decorations 覆盖。
  */
 export function getHolidayStylePatch(holiday: HolidayConfig) {
   return {
     theme: holiday.theme,
     textureStyle: holiday.textures[0],
-    decorations: [...holiday.decorations],
     sealText: holiday.sealText,
     layout: holiday.layout,
     holidayId: holiday.id,

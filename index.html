@@ -20,24 +20,12 @@
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;600;800&family=Noto+Serif+SC:wght@400;500;700;900&family=Ma+Shan+Zheng&display=swap" rel="stylesheet">
     <style>
       /* ============================================================
-         编辑器外壳主题变量 —— 暗色（默认）/ 亮色。
+         编辑器外壳主题变量 —— 亮色（默认）/ 暗色。
          组件用 var(--ui-xxx) 引用，切换只需改 <html data-ui-theme>。
-         暖炭灰（暗）保持原视觉；亮色用温暖象牙白，与海报纸调呼应。
+         亮色用温暖象牙白（默认），与海报纸调呼应；暗色为暖炭灰备用。
+         :root 默认亮色，避免首屏暗→亮闪烁。
          ============================================================ */
       :root,
-      [data-ui-theme="dark"] {
-        --ui-bg: #17130e;          /* 外层底 */
-        --ui-bg-2: #1f1a13;        /* 次级底 */
-        --ui-panel: #241d14;       /* 面板/卡片 */
-        --ui-panel-hover: #2f261a; /* 面板悬停 */
-        --ui-border: #3d3220;      /* 边框 */
-        --ui-input: #2a2218;       /* 输入框底 */
-        --ui-text: #f0ebe0;        /* 主文字 */
-        --ui-text-soft: #c4b79e;   /* 次级文字 */
-        --ui-text-muted: #a89e8c;  /* 弱化文字 */
-        --ui-accent: #b3261e;      /* 强调色（朱红） */
-        --ui-accent-soft: rgba(179,38,30,0.4);
-      }
       [data-ui-theme="light"] {
         --ui-bg: #f5f1e8;          /* 象牙白底 */
         --ui-bg-2: #efe9da;        /* 次级底 */
@@ -50,6 +38,19 @@
         --ui-text-muted: #8a7f68;  /* 弱化文字 */
         --ui-accent: #b3261e;      /* 强调色保持朱红 */
         --ui-accent-soft: rgba(179,38,30,0.18);
+      }
+      [data-ui-theme="dark"] {
+        --ui-bg: #17130e;          /* 外层底 */
+        --ui-bg-2: #1f1a13;        /* 次级底 */
+        --ui-panel: #241d14;       /* 面板/卡片 */
+        --ui-panel-hover: #2f261a; /* 面板悬停 */
+        --ui-border: #3d3220;      /* 边框 */
+        --ui-input: #2a2218;       /* 输入框底 */
+        --ui-text: #f0ebe0;        /* 主文字 */
+        --ui-text-soft: #c4b79e;   /* 次级文字 */
+        --ui-text-muted: #a89e8c;  /* 弱化文字 */
+        --ui-accent: #b3261e;      /* 强调色（朱红） */
+        --ui-accent-soft: rgba(179,38,30,0.4);
       }
       body {
         font-family: 'Noto Sans SC', system-ui, sans-serif;

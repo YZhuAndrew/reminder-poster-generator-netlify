@@ -56,10 +56,10 @@ function App() {
   const [inputTitle, setInputTitle] = useState('');
   const [inputBody, setInputBody] = useState('');
 
-  // 编辑器外壳主题（亮/暗），持久化到 localStorage，默认暗色
+  // 编辑器外壳主题（亮/暗），持久化到 localStorage，默认亮色
   const [uiTheme, setUiTheme] = useState<'dark' | 'light'>(() => {
-    try { return (localStorage.getItem('ui_theme') as 'dark' | 'light') || 'dark'; }
-    catch { return 'dark'; }
+    try { return (localStorage.getItem('ui_theme') as 'dark' | 'light') || 'light'; }
+    catch { return 'light'; }
   });
   useEffect(() => {
     document.documentElement.setAttribute('data-ui-theme', uiTheme);
@@ -233,7 +233,7 @@ function App() {
   const handleUseTemplate = (tpl: { title: string; body: string; holidayId?: string }) => {
     setInputTitle(tpl.title);
     setInputBody(tpl.body);
-    // 节日模板同步套用对应视觉（底色+强调色+装饰+印章+版式）
+    // 节日模板同步套用对应配色 + 印章文字 + 版式（装饰/边框保留默认，任何模板都不覆盖）
     if (tpl.holidayId) {
       const holiday = findHoliday(tpl.holidayId);
       if (holiday) {
