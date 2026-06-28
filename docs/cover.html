@@ -1,0 +1,342 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<title>封面示意图</title>
+<link href="https://fonts.googleapis.com/css2?family=Noto+Serif+SC:wght@400;700;900&family=Ma+Shan+Zheng&display=swap" rel="stylesheet">
+<style>
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+  body { background: #2a2218; display: flex; justify-content: center; align-items: center; min-height: 100vh; padding: 20px; }
+
+  /* 封面：900×383 公众号头图比例 */
+  .cover {
+    position: relative;
+    width: 900px;
+    height: 383px;
+    background: radial-gradient(ellipse at 30% 40%, #f0e8d4 0%, #e7dcc0 130%);
+    overflow: hidden;
+    font-family: 'Noto Serif SC', serif;
+    display: flex;
+    box-shadow: 0 30px 80px rgba(0,0,0,0.5);
+  }
+
+  /* ===== 左侧：文字主标题区（占 58%）===== */
+  .text-area {
+    position: relative;
+    width: 58%;
+    padding: 56px 30px 50px 64px;
+    z-index: 5;
+    display: flex;
+    flex-direction: column;
+    justify-content: center;
+  }
+  .kicker {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    margin-bottom: 22px;
+  }
+  .kicker-dot {
+    width: 8px; height: 8px;
+    background: #b3261e;
+    transform: rotate(45deg);
+  }
+  .kicker-text {
+    font-size: 14px;
+    letter-spacing: 0.3em;
+    color: #5b5247;
+    font-weight: 700;
+  }
+  .title {
+    font-size: 52px;
+    font-weight: 900;
+    color: #b3261e;
+    line-height: 1.15;
+    letter-spacing: 0.04em;
+    margin-bottom: 14px;
+  }
+  .title-en {
+    font-size: 17px;
+    color: #8a5a2b;
+    letter-spacing: 0.15em;
+    font-weight: 400;
+    margin-bottom: 26px;
+    font-family: 'Noto Serif SC', serif;
+  }
+  /* 标题分隔：双线夹菱形 */
+  .divider {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    margin-bottom: 22px;
+  }
+  .divider-line {
+    height: 2px; width: 60px; background: #b3261e;
+  }
+  .divider-diamond {
+    width: 11px; height: 11px;
+    background: #b3261e;
+    transform: rotate(45deg);
+    box-shadow: 0 0 0 3px rgba(179,38,30,0.15);
+  }
+  .subtitle {
+    font-size: 17px;
+    color: #1c1814;
+    line-height: 1.85;
+    font-weight: 500;
+  }
+  .subtitle b {
+    color: #b3261e;
+    font-weight: 900;
+  }
+  .features {
+    display: flex;
+    gap: 8px;
+    margin-top: 24px;
+    flex-wrap: wrap;
+  }
+  .tag {
+    font-size: 13px;
+    color: #5b5247;
+    padding: 5px 12px;
+    border: 1px solid #c9b896;
+    border-radius: 2px;
+    background: rgba(255,255,255,0.4);
+    letter-spacing: 0.05em;
+  }
+  .url-row {
+    position: absolute;
+    bottom: 26px;
+    left: 64px;
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    font-size: 13px;
+    color: #8a5a2b;
+    letter-spacing: 0.05em;
+  }
+  .url-arrow {
+    width: 18px; height: 2px; background: #b3261e;
+  }
+
+  /* ===== 右侧：迷你海报预览（占 42%）===== */
+  .poster-preview {
+    position: relative;
+    width: 42%;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    padding: 30px 50px 30px 10px;
+  }
+  .poster-card {
+    position: relative;
+    width: 250px;
+    height: 323px;
+    background: radial-gradient(ellipse at 50% 35%, #fbf7ec 0%, #efe7d2 130%);
+    box-shadow: 0 18px 40px rgba(60,40,20,0.35), 0 2px 6px rgba(60,40,20,0.15);
+    transform: rotate(2.5deg);
+  }
+  /* 迷你海报的双线装裱边框 */
+  .poster-card::before {
+    content: '';
+    position: absolute;
+    inset: 14px;
+    border: 1px solid #b3261e;
+    opacity: 0.5;
+  }
+  .poster-card::after {
+    content: '';
+    position: absolute;
+    inset: 20px;
+    border: 3px solid #b3261e;
+    opacity: 0.85;
+  }
+  /* 海报内容 */
+  .poster-inner {
+    position: absolute;
+    inset: 20px;
+    padding: 18px 16px;
+    z-index: 2;
+    display: flex;
+    flex-direction: column;
+  }
+  .p-head {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 6px;
+    margin-bottom: 10px;
+  }
+  .p-star {
+    width: 5px; height: 5px; background: #b3261e; transform: rotate(45deg);
+  }
+  .p-kicker {
+    font-size: 8px; letter-spacing: 0.3em; color: #5b5247; font-weight: 700;
+  }
+  .p-title {
+    text-align: center;
+    font-size: 26px;
+    font-weight: 900;
+    color: #b3261e;
+    letter-spacing: 0.06em;
+    margin-bottom: 10px;
+    font-family: 'Noto Serif SC', serif;
+  }
+  .p-divider {
+    display: flex; align-items: center; justify-content: center; gap: 4px;
+    margin-bottom: 12px;
+  }
+  .p-divider span {
+    height: 1.5px; width: 28px; background: #b3261e;
+  }
+  .p-divider .diamond {
+    width: 5px; height: 5px; background: #b3261e; transform: rotate(45deg); height: 5px;
+  }
+  .p-item {
+    background: #ffe8db;
+    border-left: 2.5px solid #b3261e;
+    padding: 4px 6px;
+    margin-bottom: 4px;
+    font-size: 8px;
+    color: #26211b;
+    line-height: 1.5;
+    border-radius: 1px;
+  }
+  .p-item b { color: #b3261e; font-weight: 900; margin-right: 3px; }
+  .p-seal {
+    position: absolute;
+    right: 14px;
+    bottom: 14px;
+    width: 34px; height: 34px;
+    background: #b3261e;
+    border: 1.5px solid rgba(255,255,255,0.5);
+    display: flex; align-items: center; justify-content: center;
+    border-radius: 3px;
+    mix-blend-mode: multiply;
+    opacity: 0.88;
+  }
+  .p-seal-text {
+    color: #fff;
+    font-size: 13px;
+    font-weight: 900;
+    letter-spacing: 1px;
+    font-family: 'Noto Serif SC', serif;
+  }
+  /* 迷你海报背景莲花 */
+  .p-lotus {
+    position: absolute;
+    right: -30px; bottom: -30px;
+    width: 160px; height: 160px;
+    opacity: 0.1;
+    z-index: 1;
+  }
+
+  /* ===== 全局背景装饰 ===== */
+  /* 左下角祥云 */
+  .bg-cloud {
+    position: absolute;
+    bottom: 24px;
+    left: 30px;
+    width: 90px;
+    opacity: 0.18;
+    z-index: 2;
+  }
+  /* 右上角青竹 */
+  .bg-bamboo {
+    position: absolute;
+    top: 0;
+    right: 0;
+    width: 60px;
+    height: 100%;
+    opacity: 0.12;
+    z-index: 1;
+  }
+</style>
+</head>
+<body>
+  <div class="cover">
+
+    <!-- 背景装饰：左下祥云 -->
+    <svg class="bg-cloud" viewBox="0 0 90 50" fill="none" stroke="#b3261e" stroke-width="1.5">
+      <path d="M10 35 Q5 35 5 28 Q5 20 14 20 Q16 12 26 12 Q34 12 36 20 Q44 18 46 26 Q54 24 56 32 Q58 38 50 38 L14 38 Q10 38 10 35 Z" opacity="0.5"/>
+      <path d="M58 40 Q56 34 62 32 Q64 28 70 30 Q78 28 78 36 L60 40 Z" opacity="0.4"/>
+    </svg>
+
+    <!-- 左侧文字区 -->
+    <div class="text-area">
+      <div class="kicker">
+        <span class="kicker-dot"></span>
+        <span class="kicker-text">廉洁海报 · 一键生成</span>
+      </div>
+
+      <div class="title">警示海报<br>生成器</div>
+      <div class="title-en">Reminder Poster Generator</div>
+
+      <div class="divider">
+        <span class="divider-line"></span>
+        <span class="divider-diamond"></span>
+        <span class="divider-line"></span>
+      </div>
+
+      <div class="subtitle">
+        纯前端运行，内容不联网<br>
+        莲花水印 · <b>5 款公文字体</b> · 8 种中式边框<br>
+        3 分钟做出可打印张贴的廉洁海报
+      </div>
+
+      <div class="features">
+        <span class="tag">方正小标宋</span>
+        <span class="tag">莲花 · 青竹 · 清水</span>
+        <span class="tag">亮 / 暗双主题</span>
+      </div>
+
+      <div class="url-row">
+        <span class="url-arrow"></span>
+        <span>hsjj.netlify.app</span>
+      </div>
+    </div>
+
+    <!-- 右侧迷你海报 -->
+    <div class="poster-preview">
+      <div class="poster-card">
+        <!-- 背景莲花 -->
+        <svg class="p-lotus" viewBox="0 0 200 200" fill="none" stroke="#b3261e" stroke-width="1.5">
+          <g opacity="0.5">
+            <path d="M100 100 Q100 50 70 35 Q80 70 100 100"/>
+            <path d="M100 100 Q100 50 130 35 Q120 70 100 100"/>
+            <path d="M100 100 Q70 80 40 85 Q65 100 100 100"/>
+            <path d="M100 100 Q130 80 160 85 Q135 100 100 100"/>
+            <path d="M100 100 Q85 65 100 30 Q115 65 100 100"/>
+            <path d="M100 100 Q60 95 35 110 Q70 115 100 100"/>
+            <path d="M100 100 Q140 95 165 110 Q130 115 100 100"/>
+          </g>
+          <g opacity="0.4" stroke-width="1">
+            <circle cx="100" cy="100" r="12"/>
+          </g>
+        </svg>
+
+        <div class="poster-inner">
+          <div class="p-head">
+            <span class="p-star"></span>
+            <span class="p-kicker">廉洁提醒</span>
+            <span class="p-star"></span>
+          </div>
+          <div class="p-title">清廉过节</div>
+          <div class="p-divider">
+            <span></span><span class="diamond"></span><span></span>
+          </div>
+          <div class="p-item"><b>一、</b>严禁违规收送礼品礼金</div>
+          <div class="p-item"><b>二、</b>严禁公款吃喝旅游</div>
+          <div class="p-item"><b>三、</b>严守公车管理规定</div>
+          <div class="p-item"><b>四、</b>风清气正廉洁过节</div>
+        </div>
+
+        <div class="p-seal">
+          <span class="p-seal-text">廉洁</span>
+        </div>
+      </div>
+    </div>
+
+  </div>
+</body>
+</html>
