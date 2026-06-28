@@ -271,20 +271,19 @@ function App() {
       return;
     }
 
-    // iOS 下载会降级（移除纤维质感等），首次给出提示，引导桌面/Android 获取最佳质量。
-    // 用 localStorage 记住选择，避免反复打扰。
+    // iOS Safari 受系统安全策略限制，html2canvas 截图后的 canvas 会被判定为"被污染"，
+    // toDataURL 始终抛 "The operation is insecure"，无法直接下载。
+    // 经多轮尝试（移除装饰层/blend/降级渲染/新页面打开）均无法根治，故改为引导提示：
+    // 指引用户通过截屏或电脑端下载，不再触发会失败的下载流程。
     const isIOS = /iPhone|iPad|iPod/i.test(navigator.userAgent);
     if (isIOS) {
-      const reminded = localStorage.getItem('ios_download_reminded');
-      if (reminded !== 'yes') {
-        const go = window.confirm(
-          '当前使用 iOS 设备，受系统限制下载的海报会降级：\n（装饰纹样、纸张纤维等细节会被简化）\n\n' +
-          '为获得完整画质的精美海报，建议在电脑或安卓手机上下载。\n\n' +
-          '是否仍要在当前设备继续下载？'
-        );
-        localStorage.setItem('ios_download_reminded', 'yes');
-        if (!go) return;
-      }
+      window.alert(
+        'iPhone 暂不支持直接下载图片（受 iOS 安全策略限制）。\n\n' +
+        '推荐两种方式获取海报：\n\n' +
+        '① 截屏保存：放大海报后，同时按「电源键 + 音量上键」截屏，再裁剪即可\n' +
+        '② 电脑下载：在电脑浏览器打开 hsjj.netlify.app，可一键下载高清原图'
+      );
+      return;
     }
 
     setIsDownloading(true);
@@ -332,53 +331,20 @@ function App() {
             el.style.margin = '0';
             el.style.boxShadow = 'none';
           }
-          // 仅 iOS：移除会让 html2canvas 污染 canvas / 崩溃的层，并把所有 mix-blend-mode 改 normal。
-          // 1) 纤维点阵层（3px 重复梯度致栈溢出）
-          // 2) data:image/svg 装饰纹样层（致 canvas tainted，toDataURL 抛 "operation is insecure"）
-          // 3) mix-blend-mode（iOS 渲染不稳定）
-          // 移除后海报内容/标题/正文/边框/印章完整，仅缺装饰纹样与纤维质感。
-          // 非 iOS 保留全部，享受完整材质与装饰导出。
-          if (isIOS) {
-            clonedDoc.querySelectorAll<HTMLElement>('.poster-grain').forEach((n) => n.remove());
-            clonedDoc.querySelectorAll<HTMLElement>('.poster-decorations').forEach((n) => n.remove());
-            clonedDoc.querySelectorAll<HTMLElement>('[style*="mix-blend-mode"]').forEach((n) => {
-              n.style.mixBlendMode = 'normal';
-            });
-          }
         },
       });
 
       const dataUrl = canvas.toDataURL('image/png');
       if (dataUrl === 'data:,' || dataUrl.length < 100) throw new Error('Canvas data is empty');
 
-      if (isIOS) {
-        // iOS Safari 对 <a download> 支持差，且 canvas 可能被标记 tainted 致 toDataURL 在
-        // 某些场景仍受限。最可靠方案：新标签页直接打开图片，提示用户长按"存储图像"。
-        const w = window.open('');
-        if (w) {
-          w.document.write(
-            `<html><head><meta name="viewport" content="width=device-width, initial-scale=1"><title>长按图片保存</title>` +
-            `<style>body{margin:0;background:#17130e;display:flex;flex-direction:column;align-items:center;` +
-            `justify-content:center;min-height:100vh;padding:16px;}img{max-width:100%;height:auto;border-radius:4px;` +
-            `box-shadow:0 8px 30px rgba(0,0,0,.4);}p{color:#fff;font:14px/1.6 -apple-system,sans-serif;` +
-            `margin:16px 0 0;text-align:center;}</style></head><body>` +
-            `<img src="${dataUrl}" alt="海报"/><p>👆 长按图片，选择"存储图像"保存到相册</p></body></html>`
-          );
-          w.document.close();
-          showToast('已在新页面打开，长按图片可保存');
-        } else {
-          showToast('请允许弹出窗口以查看图片', 'error');
-        }
-      } else {
-        // 桌面/Android：直接 a.download 触发下载
-        const link = document.createElement('a');
-        link.download = `poster-${Date.now()}.png`;
-        link.href = dataUrl;
-        document.body.appendChild(link);
-        link.click();
-        document.body.removeChild(link);
-        showToast('海报已下载');
-      }
+      // 桌面/Android：直接 a.download 触发下载（iOS 已在函数开头拦截，不会走到这里）
+      const link = document.createElement('a');
+      link.download = `poster-${Date.now()}.png`;
+      link.href = dataUrl;
+      document.body.appendChild(link);
+      link.click();
+      document.body.removeChild(link);
+      showToast('海报已下载');
     } catch (err: any) {
       console.error('Download failed', err);
       showToast(`下载失败：${err.message || '请稍后重试'}`, 'error');
