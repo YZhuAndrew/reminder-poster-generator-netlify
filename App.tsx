@@ -271,6 +271,22 @@ function App() {
       return;
     }
 
+    // iOS 下载会降级（移除纤维质感等），首次给出提示，引导桌面/Android 获取最佳质量。
+    // 用 localStorage 记住选择，避免反复打扰。
+    const isIOS = /iPhone|iPad|iPod/i.test(navigator.userAgent);
+    if (isIOS) {
+      const reminded = localStorage.getItem('ios_download_reminded');
+      if (reminded !== 'yes') {
+        const go = window.confirm(
+          '当前使用 iOS 设备，下载的海报会因系统限制自动降级（纸张纤维等细节会简化）。\n\n' +
+          '为获得最佳画质，建议在电脑或安卓手机上下载高清原图。\n\n' +
+          '是否仍要在当前设备继续下载？'
+        );
+        localStorage.setItem('ios_download_reminded', 'yes');
+        if (!go) return;
+      }
+    }
+
     setIsDownloading(true);
     try {
       // 等中文字体加载完成再截图，避免导出的 PNG 标题 fallback 成系统字体。
@@ -283,16 +299,30 @@ function App() {
 
       const w = styleConfig.widthScale;
       const h = styleConfig.heightScale;
-      let targetScale = 2;
+      // 仅 iOS 走降级：iOS Safari 的 html2canvas 对密集重复梯度、blend mode、
+      // 大 canvas 都不稳定，容易崩溃/空白。桌面端/Android 保持高质量完整渲染。
+      const isIOS = /iPhone|iPad|iPod/i.test(navigator.userAgent);
 
-      // 估算导出像素总量，超大尺寸降采样防 OOM（原变量名 totalPixels 表达不清，改写为渲染像素数）
-      const renderPixels = (w * targetScale) * (h * targetScale);
-      if (renderPixels > 6000000) targetScale = 1.5;
-      if (renderPixels > 10000000) targetScale = 1;
+      let targetScale: number;
+      if (isIOS) {
+        // iOS：激进降采样，压在 ~9MP 安全线内（A4@0.8x 也才 ~2.5MP）
+        targetScale = 1.2;
+        while ((w * targetScale) * (h * targetScale) > 9000000 && targetScale > 0.8) {
+          targetScale = Math.max(0.8, targetScale - 0.2);
+        }
+      } else {
+        // 桌面端/Android：保持 2x 高清，仅对超大尺寸降采样防 OOM
+        targetScale = 2;
+        const renderPixels = (w * targetScale) * (h * targetScale);
+        if (renderPixels > 16000000) targetScale = 1.5;
+      }
 
       const canvas = await html2canvas(element, {
         scale: targetScale,
-        useCORS: true,
+        // 装饰纹样是内联 data-URI SVG，同源不需要 CORS；
+        // iOS 在 useCORS:true 时对 data-URI 反而可能抛安全异常，故统一关闭。
+        useCORS: false,
+        allowTaint: true,
         backgroundColor: null,
         logging: false,
         onclone: (clonedDoc) => {
@@ -301,6 +331,14 @@ function App() {
             el.style.transform = 'none';
             el.style.margin = '0';
             el.style.boxShadow = 'none';
+          }
+          // 仅 iOS：移除会让 html2canvas 崩溃的纤维点阵层，并把所有 mix-blend-mode 改 normal。
+          // 非 iOS 保留完整材质与 blend，享受高质量导出。
+          if (isIOS) {
+            clonedDoc.querySelectorAll<HTMLElement>('.poster-grain').forEach((n) => n.remove());
+            clonedDoc.querySelectorAll<HTMLElement>('[style*="mix-blend-mode"]').forEach((n) => {
+              n.style.mixBlendMode = 'normal';
+            });
           }
         },
       });

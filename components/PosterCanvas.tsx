@@ -66,9 +66,11 @@ const PosterTexture: React.FC<{ paper: PaperTokens; enabled: boolean; opacityStr
   const k = Math.max(0, Math.min(100, opacityStrength)) / 100; // 归一化 0-1
   return (
     <>
-      {/* 宣纸纤维点阵：用 ink 色极淡点阵模拟纸纤维，安全无 filter */}
+      {/* 宣纸纤维点阵：用 ink 色极淡点阵模拟纸纤维。
+          注意：3px 重复梯度在 iOS Safari 的 html2canvas 下会逐格绘制导致崩溃，
+          所以导出时 iOS 会在 onclone 移除此层（见 App.tsx 下载函数）；屏幕显示不受影响。 */}
       <div
-        className="absolute inset-0 pointer-events-none"
+        className="absolute inset-0 pointer-events-none poster-grain"
         style={{
           backgroundImage: `radial-gradient(${paper.ink} 0.4px, transparent 0.5px)`,
           backgroundSize: '3px 3px',
@@ -79,7 +81,7 @@ const PosterTexture: React.FC<{ paper: PaperTokens; enabled: boolean; opacityStr
       />
       {/* 水墨角晕：四角用 paper2 暗角，模拟受光/做旧 */}
       <div
-        className="absolute inset-0 pointer-events-none"
+        className="absolute inset-0 pointer-events-none poster-vignette"
         style={{
           background: `radial-gradient(ellipse 125% 125% at 50% 45%, transparent 52%, ${paper.paper2} 100%)`,
           opacity: 0.3 + 0.5 * k,
