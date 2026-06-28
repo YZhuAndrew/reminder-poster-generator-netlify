@@ -25,8 +25,8 @@ export const IntroPanel: React.FC = () => {
       <div className="max-w-md mx-auto space-y-5">
         {/* 标题 */}
         <div className="text-center">
-          <div className="inline-flex items-center justify-center w-12 h-12 bg-red-600 rounded-xl shadow-lg shadow-red-900/50 mb-3">
-            <svg className="w-6 h-6 text-white" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+          <div className="inline-flex items-center justify-center w-12 h-12 bg-[#b3261e] rounded-xl shadow-lg shadow-black/40 mb-3">
+            <svg className="w-6 h-6 text-[var(--ui-text)]" fill="none" viewBox="0 0 24 24" stroke="currentColor">
               <path
                 strokeLinecap="round"
                 strokeLinejoin="round"
@@ -35,14 +35,14 @@ export const IntroPanel: React.FC = () => {
               />
             </svg>
           </div>
-          <h2 className="text-xl font-bold text-white font-serif-sc tracking-wide">警示海报生成器</h2>
-          <p className="text-blue-300/70 text-xs mt-1.5 leading-relaxed">
+          <h2 className="text-xl font-bold text-[var(--ui-text)] font-serif-sc tracking-wide">警示海报生成器</h2>
+          <p className="text-[var(--ui-text-muted)] text-xs mt-1.5 leading-relaxed">
             面向党建、纪检、安全生产、节日廉洁提醒等场景的中文海报生成工具
           </p>
         </div>
 
         {/* 线上地址卡片 */}
-        <div className="bg-gradient-to-br from-blue-900/40 to-blue-900/10 border border-blue-700/50 rounded-xl p-4">
+        <div className="bg-gradient-to-br from-[#3a2f20]/60 to-[var(--ui-panel)]/20 border border-[var(--ui-border)] rounded-xl p-4">
           <div className="flex items-start gap-4">
             <img
               src={QR_URL}
@@ -53,39 +53,39 @@ export const IntroPanel: React.FC = () => {
             />
             <div className="flex-1 min-w-0">
               <div className="flex items-center gap-1.5 mb-1">
-                <span className="text-emerald-400 text-sm">🌐</span>
-                <span className="text-xs font-semibold text-blue-200 uppercase tracking-wider">线上访问</span>
+                <span className="text-[#e08077] text-sm">🌐</span>
+                <span className="text-xs font-semibold text-[var(--ui-text-soft)]">线上访问</span>
               </div>
-              <p className="text-blue-300/60 text-[11px] mb-2">已部署，可随时访问使用</p>
+              <p className="text-[var(--ui-text-muted)] text-[11px] mb-2">已部署，可随时访问使用</p>
               <a
                 href={SITE_URL}
                 target="_blank"
                 rel="noopener noreferrer"
-                className="inline-block text-sm text-emerald-300 hover:text-emerald-200 break-all transition-colors"
+                className="inline-block text-sm text-[#e08077] hover:text-[#f0a098] break-all transition-colors"
               >
                 {SITE_URL}
               </a>
-              <p className="text-blue-400/50 text-[10px] mt-1.5">📱 手机扫码可直达</p>
+              <p className="text-[var(--ui-text-muted)] text-[10px] mt-1.5">📱 手机扫码可直达</p>
             </div>
           </div>
         </div>
 
         {/* 核心功能 */}
         <div>
-          <h3 className="text-xs font-bold text-blue-200 uppercase tracking-wider mb-3 flex items-center gap-2">
-            <span className="w-1 h-3 bg-red-600 rounded-full" />
+          <h3 className="text-xs font-bold text-[var(--ui-text-soft)] mb-3 flex items-center gap-2">
+            <span className="w-1 h-3 bg-[#b3261e] rounded-full" />
             核心功能
           </h3>
           <div className="grid grid-cols-1 gap-2">
             {FEATURES.map((f) => (
               <div
                 key={f.title}
-                className="flex items-start gap-3 bg-[#0a1628]/60 border border-blue-800/40 rounded-lg p-3"
+                className="flex items-start gap-3 bg-[var(--ui-panel)]/60 border border-[var(--ui-border)] rounded-lg p-3"
               >
                 <span className="text-xl flex-shrink-0 mt-0.5">{f.icon}</span>
                 <div className="min-w-0">
-                  <div className="text-sm font-semibold text-blue-100">{f.title}</div>
-                  <div className="text-[11px] text-blue-400/80 leading-snug mt-0.5">{f.desc}</div>
+                  <div className="text-sm font-semibold text-[var(--ui-text)]">{f.title}</div>
+                  <div className="text-[11px] text-[var(--ui-text-muted)] leading-snug mt-0.5">{f.desc}</div>
                 </div>
               </div>
             ))}
@@ -93,9 +93,9 @@ export const IntroPanel: React.FC = () => {
         </div>
 
         {/* 使用步骤 */}
-        <div className="bg-[#0a1628]/40 border border-blue-800/30 rounded-xl p-4">
-          <h3 className="text-xs font-bold text-blue-200 uppercase tracking-wider mb-3 flex items-center gap-2">
-            <span className="w-1 h-3 bg-red-600 rounded-full" />
+        <div className="bg-[var(--ui-panel)]/40 border border-[var(--ui-border)] rounded-xl p-4">
+          <h3 className="text-xs font-bold text-[var(--ui-text-soft)] mb-3 flex items-center gap-2">
+            <span className="w-1 h-3 bg-[#b3261e] rounded-full" />
             三步生成海报
           </h3>
           <ol className="space-y-2.5">
@@ -105,12 +105,12 @@ export const IntroPanel: React.FC = () => {
               { n: '3', t: '下载海报', d: '调整样式后一键导出 PNG' },
             ].map((s) => (
               <li key={s.n} className="flex items-start gap-3">
-                <span className="flex-shrink-0 w-5 h-5 rounded-full bg-red-600 text-white text-[11px] font-bold flex items-center justify-center mt-0.5">
+                <span className="flex-shrink-0 w-5 h-5 rounded-full bg-[#b3261e] text-[var(--ui-text)] text-[11px] font-bold flex items-center justify-center mt-0.5">
                   {s.n}
                 </span>
                 <div className="min-w-0">
-                  <span className="text-sm text-blue-100 font-medium">{s.t}</span>
-                  <span className="text-blue-400/70 text-[11px] ml-1.5">— {s.d}</span>
+                  <span className="text-sm text-[var(--ui-text)] font-medium">{s.t}</span>
+                  <span className="text-[var(--ui-text-muted)] text-[11px] ml-1.5">— {s.d}</span>
                 </div>
               </li>
             ))}
@@ -118,7 +118,7 @@ export const IntroPanel: React.FC = () => {
         </div>
 
         {/* 隐私说明 */}
-        <div className="flex items-start gap-2 text-blue-500/50 text-[11px] px-1">
+        <div className="flex items-start gap-2 text-[var(--ui-text-muted)] text-[11px] px-1">
           <svg className="w-3.5 h-3.5 flex-shrink-0 mt-0.5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
             <path
               strokeLinecap="round"
@@ -132,8 +132,8 @@ export const IntroPanel: React.FC = () => {
 
         {/* 引导提示 */}
         <div className="text-center pt-1">
-          <p className="text-blue-200 font-serif-sc text-sm">← 在左侧开始你的创作</p>
-          <p className="text-blue-400/50 text-xs mt-1">或从"历史记录"加载已有海报</p>
+          <p className="text-[var(--ui-text-soft)] font-serif-sc text-sm">← 在左侧开始你的创作</p>
+          <p className="text-[var(--ui-text-muted)] text-xs mt-1">或从"历史记录"加载已有海报</p>
         </div>
       </div>
     </div>

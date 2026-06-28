@@ -160,7 +160,7 @@ export const SimpleEditor: React.FC<SimpleEditorProps> = ({ value, onChange, pla
       title={label}
       className={`flex items-center justify-center rounded-md text-[#5b4f3d] transition-colors hover:bg-[#e4dcc8] flex-shrink-0 ${
         wide ? 'px-2.5 min-h-[36px] text-xs font-bold gap-1' : 'w-8 h-8'
-      } ${fmtKey && active[fmtKey] ? 'bg-[#b3261e] text-white hover:bg-[#b3261e]' : ''}`}
+      } ${fmtKey && active[fmtKey] ? 'bg-[#b3261e] text-[var(--ui-text)] hover:bg-[#b3261e]' : ''}`}
       onMouseDown={(e) => e.preventDefault()}
       onTouchStart={(e) => {
         e.preventDefault();
@@ -285,11 +285,11 @@ export const SimpleEditor: React.FC<SimpleEditorProps> = ({ value, onChange, pla
         {/* 选中文字时的浮动气泡工具条 */}
         {bubble && (
           <div
-            className="absolute z-50 flex items-center gap-0.5 bg-[#1f2738] rounded-lg p-1 shadow-xl"
+            className="absolute z-50 flex items-center gap-0.5 bg-[var(--ui-panel)] rounded-lg p-1 shadow-xl"
             style={{ left: bubble.x, top: bubble.y, transform: 'translate(-50%, -120%)', whiteSpace: 'nowrap' }}
           >
             <button
-              className={`flex items-center justify-center rounded-md w-7 h-7 ${active.bold ? 'bg-[#b3261e]' : 'hover:bg-white/10'} text-white`}
+              className={`flex items-center justify-center rounded-md w-7 h-7 ${active.bold ? 'bg-[#b3261e]' : 'hover:bg-white/10'} text-[var(--ui-text)]`}
               onMouseDown={(e) => e.preventDefault()}
               onClick={() => exec('bold')}
               title="加粗"
@@ -297,7 +297,7 @@ export const SimpleEditor: React.FC<SimpleEditorProps> = ({ value, onChange, pla
               <b className="font-serif text-sm">B</b>
             </button>
             <button
-              className={`flex items-center justify-center rounded-md w-7 h-7 ${active.italic ? 'bg-[#b3261e]' : 'hover:bg-white/10'} text-white`}
+              className={`flex items-center justify-center rounded-md w-7 h-7 ${active.italic ? 'bg-[#b3261e]' : 'hover:bg-white/10'} text-[var(--ui-text)]`}
               onMouseDown={(e) => e.preventDefault()}
               onClick={() => exec('italic')}
               title="斜体"

@@ -1,6 +1,7 @@
-// 字体方案：精简为 4 款，全部使用 Google Fonts 可真实加载的中文字体。
-// 解决旧版「小标宋/楷体/仿宋」在 web 端加载不到、统一回落系统字体的问题。
-// 保留 FontOption 接口与 id 结构，兼容历史记录。
+// 字体方案：党政公文标准字体（宋体/小标宋/楷体/仿宋/行楷）。
+// 优先用系统字体（macOS 的 ST 系列 / Windows 的 SimSun/KaiTi/FangSong），
+// 系统缺失时回落 web 字体，保证红头文件般的正式感。
+// id 保持向后兼容（旧历史记录的 song/hei 等仍能命中）。
 
 export interface FontOption {
   id: string;
@@ -9,10 +10,41 @@ export interface FontOption {
 }
 
 export const FONT_OPTIONS: FontOption[] = [
-  { id: 'song',    name: '宋体巨字', value: '"Noto Serif SC", "Songti SC", "SimSun", serif' },
-  { id: 'xiaowei', name: '小薇刊头', value: '"ZCOOL XiaoWei", "Noto Serif SC", "Songti SC", serif' },
-  { id: 'hei',     name: '思源黑体', value: '"Noto Sans SC", "PingFang SC", "Heiti SC", sans-serif' },
-  { id: 'qingke',  name: '青铜黄油', value: '"ZCOOL QingKe HuangYou", "Noto Sans SC", sans-serif' },
+  // 1. 宋体（正文/标题通用，公文最常用）
+  {
+    id: 'song',
+    name: '宋体',
+    value: '"Songti SC", "SimSun", "Noto Serif SC", "Source Han Serif SC", serif',
+  },
+  // 2. 方正小标宋（标题专用，公文红头标准字，比宋体更挺拔）
+  //    方正小标宋为付费字体，这里优先用华文中宋 STZhongsong（免费最接近替代）
+  {
+    id: 'biaosong',
+    name: '方正小标宋',
+    value: '"STZhongsong", "FZXiaoBiaoSong-B05S", "NSimSun", "Songti SC", "Noto Serif SC", serif',
+  },
+  // 3. 楷体（庄重典雅，落款/引文常用）
+  {
+    id: 'kaiti',
+    name: '楷体',
+    value: '"STKaiti", "KaiTi", "Kaiti SC", "Noto Serif SC", serif',
+  },
+  // 4. 仿宋（公文正文标准，GB/T 9704 规定正文用仿宋）
+  {
+    id: 'fangsong',
+    name: '仿宋',
+    value: '"STFangsong", "FangSong", "FangSong_GB2312", "Noto Serif SC", serif',
+  },
+  // 5. 行楷（书法感，手写行书韵味，web 兜底用 Ma Shan Zheng）
+  {
+    id: 'xingkai',
+    name: '行楷',
+    value: '"STXingkai", "Xingkai SC", "Ma Shan Zheng", "STKaiti", cursive',
+  },
 ];
 
-export const DEFAULT_TITLE_FONT_FAMILY = '"Noto Serif SC", "SimSun", "Songti SC", serif';
+// 标题默认用小标宋体（公文红头标准）。
+// 方正小标宋（FZXiaoBiaoSong-B05S）为商用付费字体，无法 web 加载，
+// 用华文中宋 STZhongsong（macOS 系统字，视觉最接近方正小标宋的免费替代）作首选，
+// Windows 用 SimSun/NSimSun，再回落 Noto Serif SC web 字体。
+export const DEFAULT_TITLE_FONT_FAMILY = '"STZhongsong", "FZXiaoBiaoSong-B05S", "NSimSun", "SimSun", "Noto Serif SC", serif';

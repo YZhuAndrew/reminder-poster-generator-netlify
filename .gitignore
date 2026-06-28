@@ -12,6 +12,10 @@ dist
 dist-ssr
 *.local
 
+# ZCode 本地技能配置（开发环境，非项目依赖）
+.agents/
+skills-lock.json
+
 # Editor directories and files
 .vscode/*
 !.vscode/extensions.json

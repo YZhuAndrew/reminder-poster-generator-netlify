@@ -1,11 +1,11 @@
-import React, { useState, useEffect, useMemo } from 'react';
+import React, { useState, useEffect, useMemo, useCallback } from 'react';
 import { Controls } from './components/Controls';
 import { PosterCanvas } from './components/PosterCanvas';
 import { PinchZoom } from './components/PinchZoom';
-import { LoginGate } from './components/LoginGate';
 import { IntroPanel } from './components/IntroPanel';
 import { PosterContent, PosterState, PosterStyle, Step, HistoryItem } from './types';
-import { analyzeWarningText, generatePosterBackground } from './services/geminiService';
+import { analyzeContent } from './services/geminiService';
+import { normalizeStyle } from './services/styleUtils';
 import html2canvas from 'html2canvas';
 
 // 配置层
@@ -13,7 +13,6 @@ import { THEMES, findThemeById } from './config/themes';
 import { FONT_OPTIONS, DEFAULT_TITLE_FONT_FAMILY } from './config/fonts';
 import { TEXTURE_STYLES } from './config/textures';
 import { getUpcomingHoliday, getHolidayStylePatch, findHoliday } from './config/holidays';
-import { GENERAL_TEMPLATES } from './config/templates';
 
 export { FONT_OPTIONS };
 
@@ -33,32 +32,52 @@ const DEFAULT_STYLE: PosterStyle = {
   layout: 'classic',
   titleFontFamily: DEFAULT_TITLE_FONT_FAMILY,
   sealText: '廉洁',
-  decorations: [],
+  // 默认装饰：廉洁主题组合（莲花水印 + 青竹 + 清水 + 四角宝相）
+  decorations: ['lotus', 'bamboo', 'water', 'cornerFlower'],
   // 重新设计新增字段
   accentScheme: 'party',       // 默认朱红强调色
   backgroundId: 'paper',       // 默认暖纸底色
   kicker: '廉洁提醒',           // 页眉左标签（纯中文）
   issue: '第 001 期',           // 页眉右期号
+  paperTexture: true,          // 典雅升级：宣纸纤维+水墨角晕材质层默认开启
+  frameStyle: 'double',        // 典雅升级：装饰边框默认双线装裱
+  bgOpacity: 60,               // 背景材质透明度（0-100），越高角晕越明显
 };
+
+// 轻量 toast 类型（零依赖，替代原生 alert）
+interface Toast {
+  id: number;
+  message: string;
+  kind: 'info' | 'error';
+}
 
 function App() {
   // Input States
   const [inputTitle, setInputTitle] = useState('');
   const [inputBody, setInputBody] = useState('');
 
+  // 编辑器外壳主题（亮/暗），持久化到 localStorage，默认暗色
+  const [uiTheme, setUiTheme] = useState<'dark' | 'light'>(() => {
+    try { return (localStorage.getItem('ui_theme') as 'dark' | 'light') || 'dark'; }
+    catch { return 'dark'; }
+  });
+  useEffect(() => {
+    document.documentElement.setAttribute('data-ui-theme', uiTheme);
+    try { localStorage.setItem('ui_theme', uiTheme); } catch {}
+  }, [uiTheme]);
+
   // App Logic States
   const [step, setStep] = useState<Step>(Step.INPUT);
   const [state, setState] = useState<PosterState>({
     content: null,
-    imageUrl: null,
     isGeneratingText: false,
-    isGeneratingImage: false,
     error: null,
   });
 
   // UI State
   const [isZoomed, setIsZoomed] = useState(false);
   const [isDownloading, setIsDownloading] = useState(false);
+  const [toasts, setToasts] = useState<Toast[]>([]);
 
   // Visual Style Config
   const [styleConfig, setStyleConfig] = useState<PosterStyle>(DEFAULT_STYLE);
@@ -70,6 +89,16 @@ function App() {
   // 节日推荐（自动检测临近节日）
   const upcomingHoliday = useMemo(() => getUpcomingHoliday(new Date(), 30), []);
 
+  // toast 工具：info 2.6s 自动消失；error 5s（错误信息需留够时间读完）
+  const showToast = useCallback((message: string, kind: 'info' | 'error' = 'info', duration?: number) => {
+    const id = Date.now() + Math.random();
+    setToasts((prev) => [...prev, { id, message, kind }]);
+    const ttl = duration ?? (kind === 'error' ? 5000 : 2600);
+    window.setTimeout(() => {
+      setToasts((prev) => prev.filter((t) => t.id !== id));
+    }, ttl);
+  }, []);
+
   // Load history from local storage on mount
   useEffect(() => {
     const saved = localStorage.getItem('poster_history');
@@ -78,46 +107,11 @@ function App() {
         const parsed = JSON.parse(saved);
         if (!Array.isArray(parsed)) return;
 
-        // 迁移：兼容旧记录 + 回填新字段默认值
-        const migrated = parsed.map((item: any) => {
-          const rawStyle = item.styleConfig || {};
-          let safeTheme = THEMES[0];
-
-          if (rawStyle.theme && typeof rawStyle.theme === 'object') {
-            const found = THEMES.find((t) => t.id === rawStyle.theme.id);
-            if (found) {
-              safeTheme = found;
-            } else {
-              // 可能是节日主题（不在通用 THEMES 中），保留原值
-              safeTheme = rawStyle.theme;
-            }
-          } else if (typeof rawStyle.theme === 'string') {
-            safeTheme = findThemeById(rawStyle.theme);
-          }
-
-          return {
-            ...item,
-            styleConfig: {
-              ...DEFAULT_STYLE,
-              ...rawStyle,
-              theme: safeTheme,
-              textureStyle: rawStyle.textureStyle || 'clouds',
-              fontFamily: rawStyle.fontFamily || DEFAULT_STYLE.fontFamily,
-              showSeal: rawStyle.showSeal !== undefined ? rawStyle.showSeal : true,
-              // 新字段回填
-              layout: rawStyle.layout || DEFAULT_STYLE.layout,
-              titleFontFamily: rawStyle.titleFontFamily || DEFAULT_STYLE.titleFontFamily,
-              sealText: rawStyle.sealText || DEFAULT_STYLE.sealText,
-              decorations: Array.isArray(rawStyle.decorations) ? rawStyle.decorations : [],
-              holidayId: rawStyle.holidayId,
-              // 重新设计新增字段回填（旧记录无则用默认）
-              accentScheme: rawStyle.accentScheme || DEFAULT_STYLE.accentScheme,
-              backgroundId: rawStyle.backgroundId || DEFAULT_STYLE.backgroundId,
-              kicker: rawStyle.kicker || DEFAULT_STYLE.kicker,
-              issue: rawStyle.issue || DEFAULT_STYLE.issue,
-            },
-          };
-        });
+        // 迁移：兼容旧记录 + 回填新字段默认值（统一走 normalizeStyle）
+        const migrated = parsed.map((item: any) => ({
+          ...item,
+          styleConfig: normalizeStyle(item.styleConfig, DEFAULT_STYLE, THEMES, findThemeById),
+        }));
         setHistory(migrated);
       } catch (e) {
         console.error('Failed to parse history', e);
@@ -128,23 +122,22 @@ function App() {
 
   // Save history to local storage whenever it changes, with quota management
   useEffect(() => {
-    const saveWithQuotaManagement = (items: HistoryItem[]) => {
+    // 超限时递归删最旧一条，并把结果回写 state，保证 state 与 storage 一致。
+    // （旧版 bug：catch 里只写盘不回写 state，导致 state 永远比 storage 多、
+    //  每次 effect 重跑又超限，刷新后丢数据。）
+    const trimAndSave = (items: HistoryItem[]): void => {
       try {
         localStorage.setItem('poster_history', JSON.stringify(items));
       } catch (e: any) {
-        if (e.name === 'QuotaExceededError' || e.name === 'NS_ERROR_DOM_QUOTA_REACHED' || e.code === 22) {
-          console.warn('LocalStorage quota exceeded. Trimming history to fit.');
-          if (items.length === 0) return;
-          const newItems = [...items];
-          const oldestIndex = newItems.length - 1;
-          const oldestItem = newItems[oldestIndex];
-          if (oldestItem.imageUrl) {
-            newItems[oldestIndex] = { ...oldestItem, imageUrl: null };
-            saveWithQuotaManagement(newItems);
-          } else {
-            newItems.pop();
-            saveWithQuotaManagement(newItems);
-          }
+        if (
+          e.name === 'QuotaExceededError' ||
+          e.name === 'NS_ERROR_DOM_QUOTA_REACHED' ||
+          e.code === 22
+        ) {
+          if (items.length <= 1) return; // 仅剩一条仍超限，放弃
+          const trimmed = items.slice(0, items.length - 1);
+          trimAndSave(trimmed);
+          setHistory(trimmed); // 关键：回写 state
         } else {
           console.error('Failed to save history', e);
         }
@@ -152,7 +145,7 @@ function App() {
     };
 
     if (history.length > 0) {
-      saveWithQuotaManagement(history);
+      trimAndSave(history);
     }
   }, [history]);
 
@@ -160,19 +153,17 @@ function App() {
     title: string,
     body: string,
     content: PosterContent,
-    imageUrl: string | null,
     style: PosterStyle,
     existingId: string | null = null,
   ) => {
     const timestamp = Date.now();
-
     if (existingId) {
       setHistory((prev) =>
-        prev.map((item) => (item.id === existingId ? { ...item, title, body, content, imageUrl, styleConfig: style, timestamp } : item)),
+        prev.map((item) => (item.id === existingId ? { ...item, title, body, content, styleConfig: style, timestamp } : item)),
       );
     } else {
       const id = timestamp.toString();
-      const newItem: HistoryItem = { id, timestamp, title, body, content, imageUrl, styleConfig: style };
+      const newItem: HistoryItem = { id, timestamp, title, body, content, styleConfig: style };
       setHistory((prev) => [newItem, ...prev].slice(0, 10));
       setCurrentId(id);
     }
@@ -189,20 +180,10 @@ function App() {
     setCurrentId(item.id);
     setInputTitle(item.title);
     setInputBody(item.body);
-    const safeStyle: PosterStyle = {
-      ...DEFAULT_STYLE,
-      ...item.styleConfig,
-      theme: item.styleConfig.theme || THEMES[0],
-      fontFamily: item.styleConfig.fontFamily || DEFAULT_STYLE.fontFamily,
-      showSeal: item.styleConfig.showSeal !== undefined ? item.styleConfig.showSeal : true,
-      decorations: Array.isArray(item.styleConfig.decorations) ? item.styleConfig.decorations : [],
-    };
-    setStyleConfig(safeStyle);
+    setStyleConfig(normalizeStyle(item.styleConfig, DEFAULT_STYLE, THEMES, findThemeById));
     setState({
       content: item.content,
-      imageUrl: item.imageUrl,
       isGeneratingText: false,
-      isGeneratingImage: false,
       error: null,
     });
     setStep(Step.PREVIEW);
@@ -215,9 +196,7 @@ function App() {
     setStyleConfig(DEFAULT_STYLE);
     setState({
       content: null,
-      imageUrl: null,
       isGeneratingText: false,
-      isGeneratingImage: false,
       error: null,
     });
     setStep(Step.INPUT);
@@ -225,12 +204,8 @@ function App() {
 
   const handleManualSave = () => {
     if (!state.content) return;
-    addToHistory(inputTitle, inputBody, state.content, state.imageUrl, styleConfig, currentId);
-    alert('已保存到历史记录');
-  };
-
-  const handleClearImage = () => {
-    setState((prev) => ({ ...prev, imageUrl: null }));
+    addToHistory(inputTitle, inputBody, state.content, styleConfig, currentId);
+    showToast('已保存到历史记录');
   };
 
   // 一键套用节日主题
@@ -254,6 +229,21 @@ function App() {
     }
   };
 
+  // 使用模板库的模板（来自内置通用/节日/我的模板）
+  const handleUseTemplate = (tpl: { title: string; body: string; holidayId?: string }) => {
+    setInputTitle(tpl.title);
+    setInputBody(tpl.body);
+    // 节日模板同步套用对应视觉（底色+强调色+装饰+印章+版式）
+    if (tpl.holidayId) {
+      const holiday = findHoliday(tpl.holidayId);
+      if (holiday) {
+        const patch = getHolidayStylePatch(holiday);
+        setStyleConfig((prev) => ({ ...prev, ...patch }));
+      }
+    }
+    showToast('已套用模板，可在编辑页继续调整');
+  };
+
   const handleGenerate = async () => {
     if (!inputTitle.trim() || !inputBody.trim()) return;
 
@@ -261,54 +251,44 @@ function App() {
     setCurrentId(null);
 
     try {
-      const content = await analyzeWarningText(inputTitle, inputBody);
+      const content = await analyzeContent(inputTitle, inputBody);
 
-      setState((prev) => ({ ...prev, content, isGeneratingText: false, isGeneratingImage: false, imageUrl: null }));
+      setState((prev) => ({ ...prev, content, isGeneratingText: false }));
       setStep(Step.PREVIEW);
-      addToHistory(inputTitle, inputBody, content, null, styleConfig, null);
+      addToHistory(inputTitle, inputBody, content, styleConfig, null);
     } catch (error: any) {
       console.error(error);
       const errorMsg = error.message || '未知错误';
-      alert(`生成失败: ${errorMsg}`);
-      setState((prev) => ({ ...prev, isGeneratingText: false, isGeneratingImage: false, error: errorMsg }));
-    }
-  };
-
-  const handleRegenerateImage = async () => {
-    if (!state.content) return;
-    setState((prev) => ({ ...prev, isGeneratingImage: true }));
-    try {
-      const imageUrl = await generatePosterBackground(
-        state.content.imagePrompt + ` variant ${Date.now()}`,
-        styleConfig.theme,
-        styleConfig.textureStyle,
-      );
-      setState((prev) => ({ ...prev, imageUrl, isGeneratingImage: false }));
-      if (currentId && imageUrl) {
-        addToHistory(inputTitle, inputBody, state.content, imageUrl, styleConfig, currentId);
-      }
-    } catch (error: any) {
-      alert(`绘图失败: ${error.message}`);
-      setState((prev) => ({ ...prev, isGeneratingImage: false }));
+      showToast(`生成失败：${errorMsg}`, 'error');
+      setState((prev) => ({ ...prev, isGeneratingText: false, error: errorMsg }));
     }
   };
 
   const handleDownloadImage = async () => {
     const element = document.getElementById('poster-capture-area');
     if (!element) {
-      alert('找不到海报内容，无法下载');
+      showToast('找不到海报内容，无法下载', 'error');
       return;
     }
 
     setIsDownloading(true);
     try {
+      // 等中文字体加载完成再截图，避免导出的 PNG 标题 fallback 成系统字体。
+      const fonts = (document as any).fonts;
+      if (fonts?.ready) {
+        await fonts.ready;
+      }
+      // 再兜底等一帧，覆盖 fonts.ready 在部分浏览器提前 resolve 的情况
+      await new Promise((r) => setTimeout(r, 100));
+
       const w = styleConfig.widthScale;
       const h = styleConfig.heightScale;
       let targetScale = 2;
 
-      const totalPixels = w * 2 * (h * 2);
-      if (totalPixels > 6000000) targetScale = 1.5;
-      if (totalPixels > 10000000) targetScale = 1;
+      // 估算导出像素总量，超大尺寸降采样防 OOM（原变量名 totalPixels 表达不清，改写为渲染像素数）
+      const renderPixels = (w * targetScale) * (h * targetScale);
+      if (renderPixels > 6000000) targetScale = 1.5;
+      if (renderPixels > 10000000) targetScale = 1;
 
       const canvas = await html2canvas(element, {
         scale: targetScale,
@@ -334,9 +314,10 @@ function App() {
       document.body.appendChild(link);
       link.click();
       document.body.removeChild(link);
+      showToast('海报已下载');
     } catch (err: any) {
       console.error('Download failed', err);
-      alert(`下载图片失败: ${err.message || '请稍后重试'}`);
+      showToast(`下载失败：${err.message || '请稍后重试'}`, 'error');
     } finally {
       setIsDownloading(false);
     }
@@ -349,39 +330,57 @@ function App() {
   const hasContent = !!state.content;
 
   return (
-    <LoginGate>
-    <div className="h-screen w-full flex flex-col lg:flex-row bg-[#050C1A] overflow-hidden">
+    <main className="h-screen w-full flex flex-col lg:flex-row bg-[var(--ui-bg)] overflow-hidden">
+      {/* 主题切换按钮（亮/暗），固定右上角 */}
+      <button
+        onClick={() => setUiTheme((t) => (t === 'dark' ? 'light' : 'dark'))}
+        aria-label={uiTheme === 'dark' ? '切换到亮色' : '切换到暗色'}
+        title={uiTheme === 'dark' ? '亮色模式' : '暗色模式'}
+        className="fixed top-4 right-4 z-[90] w-10 h-10 rounded-full flex items-center justify-center bg-[var(--ui-panel)] border border-[var(--ui-border)] hover:border-[var(--ui-accent)] transition-colors shadow-lg"
+      >
+        {uiTheme === 'dark' ? (
+          // 太阳图标（当前暗色，点击切亮）
+          <svg className="w-5 h-5 text-[var(--ui-text-soft)]" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.8}>
+            <circle cx="12" cy="12" r="4" />
+            <path strokeLinecap="round" d="M12 2v2M12 20v2M4.93 4.93l1.41 1.41M17.66 17.66l1.41 1.41M2 12h2M20 12h2M6.34 17.66l-1.41 1.41M19.07 4.93l-1.41 1.41" />
+          </svg>
+        ) : (
+          // 月亮图标（当前亮色，点击切暗）
+          <svg className="w-5 h-5 text-[var(--ui-text-soft)]" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.8}>
+            <path strokeLinecap="round" strokeLinejoin="round" d="M21 12.79A9 9 0 1111.21 3 7 7 0 0021 12.79z" />
+          </svg>
+        )}
+      </button>
+
       {/* PREVIEW PANEL */}
-      <div
+      <aside
         className={`
-          relative z-10 bg-[#050C1A] transition-all duration-300 ease-in-out shadow-2xl
+          relative z-10 bg-[var(--ui-bg)] transition-all duration-300 ease-in-out shadow-2xl
           order-1 lg:order-2
           w-full lg:w-[500px] flex-shrink-0
-          ${hasContent ? 'h-[42vh] border-b border-white/10' : 'h-0 border-b-0'} lg:h-full lg:border-b-0 lg:border-l lg:border-white/10
+          ${hasContent ? 'h-[42vh] border-b border-[var(--ui-border)]' : 'h-0 border-b-0'} lg:h-full lg:border-b-0 lg:border-l lg:border-[var(--ui-border)]
           flex items-center justify-center
         `}
       >
         <div
-          className="absolute inset-0 z-0 opacity-20 pointer-events-none"
-          style={{ backgroundImage: 'radial-gradient(#1e3a8a 1px, transparent 1px)', backgroundSize: '24px 24px' }}
+          className="absolute inset-0 z-0 opacity-[0.07] pointer-events-none"
+          style={{ backgroundImage: 'radial-gradient(rgba(180,150,90,0.5) 1px, transparent 1px)', backgroundSize: '24px 24px' }}
         />
 
         {state.content && styleConfig ? (
           <PosterCanvas
             id="poster-capture-area"
             content={state.content}
-            imageUrl={state.imageUrl}
             styleConfig={styleConfig}
-            isGeneratingImage={state.isGeneratingImage}
             onClick={() => setIsZoomed(true)}
           />
         ) : (
           <IntroPanel />
         )}
-      </div>
+      </aside>
 
       {/* CONTROLS PANEL */}
-      <div className="order-2 lg:order-1 flex-1 min-w-0 h-full overflow-y-auto custom-scrollbar p-4 relative z-0">
+      <section className="order-2 lg:order-1 flex-1 min-w-0 h-full overflow-y-auto custom-scrollbar p-4 relative z-0">
         <Controls
           step={step}
           inputTitle={inputTitle}
@@ -393,9 +392,6 @@ function App() {
           styleConfig={styleConfig}
           setStyleConfig={setStyleConfig}
           content={state.content}
-          onRegenerateImage={handleRegenerateImage}
-          onClearImage={handleClearImage}
-          isGeneratingImage={state.isGeneratingImage}
           onBackToEdit={handleBackToEdit}
           history={history}
           onLoadHistory={handleLoadHistory}
@@ -409,12 +405,12 @@ function App() {
           upcomingHoliday={upcomingHoliday}
           onApplyHoliday={handleApplyHoliday}
           onApplyHolidayWithTemplate={handleApplyHolidayWithTemplate}
-          generalTemplates={GENERAL_TEMPLATES}
+          onUseTemplate={handleUseTemplate}
         />
         {state.error && (
-          <div className="mt-4 p-3 bg-red-900/50 text-red-200 text-sm rounded border border-red-800">{state.error}</div>
+          <div role="alert" className="mt-4 p-3 bg-[#5a1a16]/60 text-[#f0bcb6] text-sm rounded border border-[#7a2a22]">{state.error}</div>
         )}
-      </div>
+      </section>
 
       {/* FULL SCREEN ZOOM MODAL */}
       {isZoomed && state.content && (
@@ -424,7 +420,8 @@ function App() {
           <div className="relative w-full h-full flex flex-col items-center justify-center pointer-events-none">
             <button
               onClick={() => setIsZoomed(false)}
-              className="absolute top-0 right-0 lg:top-4 lg:right-4 z-50 p-2 text-white/70 hover:text-white bg-black/50 hover:bg-black/80 rounded-full transition-colors pointer-events-auto"
+              aria-label="关闭预览"
+              className="absolute top-0 right-0 lg:top-4 lg:right-4 z-50 p-2 text-[var(--ui-text)]/70 hover:text-[var(--ui-text)] bg-black/50 hover:bg-black/80 rounded-full transition-colors pointer-events-auto focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#b3261e]"
             >
               <svg className="w-8 h-8" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                 <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
@@ -436,17 +433,31 @@ function App() {
                 <PosterCanvas
                   id="poster-zoom-view"
                   content={state.content}
-                  imageUrl={state.imageUrl}
                   styleConfig={styleConfig}
-                  isGeneratingImage={state.isGeneratingImage}
                 />
               </PinchZoom>
             </div>
           </div>
         </div>
       )}
-    </div>
-    </LoginGate>
+
+      {/* TOAST 容器 —— 替代原生 alert */}
+      <div className="fixed top-4 left-1/2 -translate-x-1/2 z-[60] flex flex-col gap-2 pointer-events-none w-[92vw] max-w-sm">
+        {toasts.map((t) => (
+          <div
+            key={t.id}
+            role="status"
+            className={`pointer-events-auto px-4 py-3 rounded-lg shadow-lg text-sm font-medium border animate-[fadein_0.2s_ease-out] ${
+              t.kind === 'error'
+                ? 'bg-[#5a1a16]/95 text-[#f0bcb6] border-[#7a2a22]'
+                : 'bg-[var(--ui-panel)]/95 text-[var(--ui-text)] border-[var(--ui-border)]'
+            }`}
+          >
+            {t.message}
+          </div>
+        ))}
+      </div>
+    </main>
   );
 }
 

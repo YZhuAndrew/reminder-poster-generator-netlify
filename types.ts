@@ -2,17 +2,13 @@
 export interface PosterContent {
   headline: string;
   // subheadline removed - merged into bodyText via Rich Text
-  bodyText: string; 
+  bodyText: string;
   footer: string;
-  imagePrompt: string;
-  suggestedColor: string;
 }
 
 export interface PosterState {
   content: PosterContent | null;
-  imageUrl: string | null;
   isGeneratingText: boolean;
-  isGeneratingImage: boolean;
   error: string | null;
 }
 
@@ -53,6 +49,9 @@ export interface PosterStyle {
   backgroundId?: string;        // 底色 id（暖纸/米白/纯白/浅青/浅墨/象牙）
   kicker?: string;              // 页眉左标签（纯中文）
   issue?: string;               // 页眉右期号
+  paperTexture?: boolean;       // 是否启用宣纸纤维+水墨角晕材质层（典雅升级，默认开）
+  frameStyle?: string;          // 装饰边框样式：double/meander/simple/none（默认 double）
+  bgOpacity?: number;           // 背景材质透明度 0-100（默认 60），越高角晕/纤维越明显
 }
 
 export interface HistoryItem {
@@ -61,7 +60,6 @@ export interface HistoryItem {
   title: string; // Original input title
   body: string;  // Original input body
   content: PosterContent;
-  imageUrl: string | null;
   styleConfig: PosterStyle;
 }
 
@@ -99,4 +97,8 @@ export interface HolidayConfig {
   templates: HolidayTemplate[]; // 文案模板
   /** 该节日即将到来时的提示文案 */
   bannerHint?: string;
+  /** 新设计：套用节日时写入的强调色方案 id（缺失则按 theme.primaryColor 兜底匹配） */
+  accentSchemeId?: string;
+  /** 新设计：套用节日时写入的底色 id（缺失则用 'paper'） */
+  backgroundId?: string;
 }

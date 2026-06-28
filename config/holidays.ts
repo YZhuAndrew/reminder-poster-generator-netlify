@@ -49,6 +49,8 @@ export const HOLIDAYS: HolidayConfig[] = [
     layout: 'banner',
     templates: HOLIDAY_TEMPLATES.newYear,
     bannerHint: '元旦将至，廉洁开年',
+    accentSchemeId: 'party',
+    backgroundId: 'cream',
   },
   {
     id: 'springFestival',
@@ -71,6 +73,8 @@ export const HOLIDAYS: HolidayConfig[] = [
     layout: 'banner',
     templates: HOLIDAY_TEMPLATES.springFestival,
     bannerHint: '年关廉关，风清气正',
+    accentSchemeId: 'party',
+    backgroundId: 'paper',
   },
   {
     id: 'qingming',
@@ -92,6 +96,8 @@ export const HOLIDAYS: HolidayConfig[] = [
     layout: 'minimal',
     templates: HOLIDAY_TEMPLATES.qingming,
     bannerHint: '清明将至，文明祭扫',
+    accentSchemeId: 'pine',
+    backgroundId: 'mist',
   },
   {
     id: 'labour',
@@ -114,6 +120,8 @@ export const HOLIDAYS: HolidayConfig[] = [
     layout: 'classic',
     templates: HOLIDAY_TEMPLATES.labour,
     bannerHint: '劳动光荣，清廉过节',
+    accentSchemeId: 'guofeng',
+    backgroundId: 'cream',
   },
   {
     id: 'dragonBoat',
@@ -135,6 +143,8 @@ export const HOLIDAYS: HolidayConfig[] = [
     layout: 'classic',
     templates: HOLIDAY_TEMPLATES.dragonBoat,
     bannerHint: '端午安康，廉洁相伴',
+    accentSchemeId: 'pine',
+    backgroundId: 'ivory',
   },
   {
     id: 'midAutumn',
@@ -157,6 +167,8 @@ export const HOLIDAYS: HolidayConfig[] = [
     layout: 'banner',
     templates: HOLIDAY_TEMPLATES.midAutumn,
     bannerHint: '月圆人圆，廉洁中秋',
+    accentSchemeId: 'plum',
+    backgroundId: 'ivory',
   },
   {
     id: 'nationalDay',
@@ -179,6 +191,8 @@ export const HOLIDAYS: HolidayConfig[] = [
     layout: 'banner',
     templates: HOLIDAY_TEMPLATES.nationalDay,
     bannerHint: '喜迎国庆，廉洁同行',
+    accentSchemeId: 'party',
+    backgroundId: 'paper',
   },
 ];
 
@@ -236,7 +250,12 @@ export function getUpcomingHoliday(
   return candidates[0];
 }
 
-/** 一键套用节日：返回应写入 styleConfig 的部分字段 */
+/**
+ * 一键套用节日：返回应写入 styleConfig 的部分字段。
+ *
+ * 关键：必须同时写入 accentScheme + backgroundId，否则新设计的 PosterCanvas
+ * 仍按旧 accentScheme/backgroundId 渲染，导致"主题对象变了但纸张配色没变"的割裂。
+ */
 export function getHolidayStylePatch(holiday: HolidayConfig) {
   return {
     theme: holiday.theme,
@@ -245,5 +264,7 @@ export function getHolidayStylePatch(holiday: HolidayConfig) {
     sealText: holiday.sealText,
     layout: holiday.layout,
     holidayId: holiday.id,
+    accentScheme: holiday.accentSchemeId || 'party',
+    backgroundId: holiday.backgroundId || 'paper',
   };
 }

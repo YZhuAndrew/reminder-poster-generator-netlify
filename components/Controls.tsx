@@ -1,13 +1,13 @@
 import React, { useState } from 'react';
-import { PosterStyle, PosterContent, HistoryItem, PosterTheme, Step, HolidayConfig } from '../types';
+import { PosterStyle, PosterContent, HistoryItem, PosterTheme, Step } from '../types';
 import { SimpleEditor } from './SimpleEditor';
+import { TemplateLibrary } from './TemplateLibrary';
+import { FRAME_STYLES } from './PosterCanvas';
 import { FONT_OPTIONS } from '../config/fonts';
 import { LAYOUT_OPTIONS } from '../config/layouts';
 import { DECORATION_OPTIONS } from '../config/decorations';
 import { ACCENT_SCHEMES, BACKGROUNDS } from '../config/themes';
-import { findHoliday } from '../config/holidays';
-import { UpcomingHoliday } from '../config/holidays';
-import { HolidayTemplate } from '../types';
+import { findHoliday, UpcomingHoliday } from '../config/holidays';
 
 interface ControlsProps {
   step: Step;
@@ -21,9 +21,6 @@ interface ControlsProps {
   styleConfig: PosterStyle;
   setStyleConfig: React.Dispatch<React.SetStateAction<PosterStyle>>;
   content: PosterContent | null;
-  onRegenerateImage: () => void;
-  onClearImage: () => void;
-  isGeneratingImage: boolean;
   onBackToEdit: () => void;
 
   history: HistoryItem[];
@@ -40,7 +37,8 @@ interface ControlsProps {
   upcomingHoliday: UpcomingHoliday | null;
   onApplyHoliday: (holidayId: string) => void;
   onApplyHolidayWithTemplate: (holidayId: string) => void;
-  generalTemplates: HolidayTemplate[];
+  /** 使用模板库的模板：填入标题+正文，节日模板额外套用主题 */
+  onUseTemplate: (tpl: { title: string; body: string; holidayId?: string }) => void;
 }
 
 // 尺寸预设
@@ -51,6 +49,10 @@ const SIZE_PRESETS = [
   { id: 'default', name: '默认', w: 600, h: 960 },
 ];
 
+// 选中态通用 className（朱红强调）—— 跟随主题变量
+const SELECTED = 'bg-[var(--ui-accent)] text-[var(--ui-text)] border-[var(--ui-accent)]';
+const UNSELECTED = 'bg-[var(--ui-panel)] text-[var(--ui-text-soft)] border-[var(--ui-border)] hover:border-[var(--ui-accent)]';
+
 // 可折叠卡片
 const CollapsibleSection: React.FC<{ title: string; defaultOpen?: boolean; children: React.ReactNode }> = ({
   title,
@@ -59,14 +61,15 @@ const CollapsibleSection: React.FC<{ title: string; defaultOpen?: boolean; child
 }) => {
   const [open, setOpen] = useState(defaultOpen);
   return (
-    <div className="border border-blue-800/50 rounded-lg overflow-hidden">
+    <div className="border border-[var(--ui-border)] rounded-lg overflow-hidden">
       <button
         onClick={() => setOpen((o) => !o)}
-        className="w-full flex items-center justify-between px-3 py-2.5 bg-blue-900/30 hover:bg-blue-900/50 transition-colors min-h-[40px]"
+        aria-expanded={open}
+        className="w-full flex items-center justify-between px-3 py-2.5 bg-[var(--ui-panel)] hover:bg-[var(--ui-panel-hover)] transition-colors min-h-[40px] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#b3261e]"
       >
-        <span className="text-sm font-semibold text-blue-200">{title}</span>
+        <span className="text-sm font-semibold text-[var(--ui-text)]">{title}</span>
         <svg
-          className={`w-4 h-4 text-blue-400 transition-transform ${open ? 'rotate-180' : ''}`}
+          className={`w-4 h-4 text-[var(--ui-text-muted)] transition-transform ${open ? 'rotate-180' : ''}`}
           fill="none"
           viewBox="0 0 24 24"
           stroke="currentColor"
@@ -90,9 +93,6 @@ export const Controls: React.FC<ControlsProps> = ({
   styleConfig,
   setStyleConfig,
   content,
-  onRegenerateImage,
-  onClearImage,
-  isGeneratingImage,
   onBackToEdit,
   history,
   onLoadHistory,
@@ -106,9 +106,9 @@ export const Controls: React.FC<ControlsProps> = ({
   upcomingHoliday,
   onApplyHoliday,
   onApplyHolidayWithTemplate,
-  generalTemplates,
+  onUseTemplate,
 }) => {
-  const [activeTab, setActiveTab] = useState<'editor' | 'history'>('editor');
+  const [activeTab, setActiveTab] = useState<'editor' | 'templates' | 'history'>('editor');
 
   const handleChange = (key: keyof PosterStyle, value: any) => {
     setStyleConfig((prev) => ({ ...prev, [key]: value }));
@@ -123,9 +123,9 @@ export const Controls: React.FC<ControlsProps> = ({
 
   const renderHistory = () => (
     <div className="space-y-4">
-      <h3 className="text-sm font-bold text-blue-200 uppercase tracking-wider mb-4">历史记录 ({history.length})</h3>
+      <h3 className="text-sm font-bold text-[var(--ui-text)] mb-4">历史记录（{history.length}）</h3>
       {history.length === 0 ? (
-        <div className="text-center py-10 text-blue-500/50 text-sm">
+        <div className="text-center py-10 text-[var(--ui-text-muted)] text-sm">
           暂无历史记录
           <br />
           生成海报后会自动保存
@@ -137,10 +137,10 @@ export const Controls: React.FC<ControlsProps> = ({
             return (
               <div
                 key={item.id}
-                className="bg-[#0a1628] border border-blue-800/50 rounded-lg p-3 hover:border-blue-600 transition-colors group"
+                className="bg-[var(--ui-panel)] border border-[var(--ui-border)] rounded-lg p-3 hover:border-[#b3261e] transition-colors group"
               >
                 <div className="flex justify-between items-start mb-2">
-                  <h4 className="font-bold text-white text-sm line-clamp-1 font-serif-sc mr-2 flex items-center gap-1">
+                  <h4 className="font-bold text-[var(--ui-text)] text-sm line-clamp-1 font-serif-sc mr-2 flex items-center gap-1">
                     {holiday && <span className="text-base">{holiday.emoji}</span>}
                     {item.title || '无标题'}
                   </h4>
@@ -149,8 +149,9 @@ export const Controls: React.FC<ControlsProps> = ({
                       e.stopPropagation();
                       onDeleteHistory(item.id);
                     }}
-                    className="text-blue-500 hover:text-red-400 transition-colors p-1 min-w-[36px] min-h-[36px] flex items-center justify-center"
+                    className="text-[var(--ui-text-muted)] hover:text-[#e08077] transition-colors p-1 min-w-[36px] min-h-[36px] flex items-center justify-center focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#b3261e] rounded"
                     title="删除"
+                    aria-label="删除此记录"
                   >
                     <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                       <path
@@ -162,13 +163,13 @@ export const Controls: React.FC<ControlsProps> = ({
                     </svg>
                   </button>
                 </div>
-                <p className="text-xs text-blue-400 mb-3">{new Date(item.timestamp).toLocaleString()}</p>
+                <p className="text-xs text-[var(--ui-text-muted)] mb-3">{new Date(item.timestamp).toLocaleString()}</p>
                 <button
                   onClick={() => {
                     onLoadHistory(item);
                     setActiveTab('editor');
                   }}
-                  className="w-full py-2 bg-blue-900/30 hover:bg-blue-800 text-blue-200 text-xs rounded border border-blue-800/50 transition-colors min-h-[36px]"
+                  className="w-full py-2 bg-[var(--ui-input)] hover:bg-[#3a2f20] text-[var(--ui-text-soft)] text-xs rounded border border-[var(--ui-border)] transition-colors min-h-[36px] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#b3261e]"
                 >
                   加载此海报
                 </button>
@@ -180,7 +181,7 @@ export const Controls: React.FC<ControlsProps> = ({
     </div>
   );
 
-  // 节日横幅（顶部推荐）
+  // 节日横幅（顶部推荐）—— 当前入口已停用（见 renderInput 中被注释的调用）
   const renderHolidayBanner = () => {
     if (!upcomingHoliday) return null;
     const { holiday, daysUntil } = upcomingHoliday;
@@ -197,46 +198,24 @@ export const Controls: React.FC<ControlsProps> = ({
       >
         <span className="text-2xl flex-shrink-0">{holiday.emoji}</span>
         <div className="flex-1 min-w-0">
-          <div className="text-sm font-bold text-white">
+          <div className="text-sm font-bold text-[var(--ui-text)]">
             临近【{holiday.name}】· {dayText}
           </div>
-          <div className="text-xs text-blue-200 truncate">{holiday.bannerHint || '点击套用节日主题'}</div>
+          <div className="text-xs text-[var(--ui-text-soft)] truncate">{holiday.bannerHint || '点击套用节日主题'}</div>
         </div>
-        <span className="text-xs text-white bg-white/20 px-2 py-1 rounded flex-shrink-0">一键套用</span>
+        <span className="text-xs text-[var(--ui-text)] bg-white/20 px-2 py-1 rounded flex-shrink-0">一键套用</span>
       </div>
     );
   };
 
-  // 节日模板快捷入口（编辑页）
-  const renderHolidayTemplates = () => (
-    <div className="mb-4">
-      <label className="block text-xs font-semibold text-blue-300 mb-2 uppercase tracking-wider">快速模板</label>
-      <div className="flex gap-2 overflow-x-auto pb-2 -mx-1 px-1">
-        {/* 通用模板 */}
-        {generalTemplates.map((tpl, i) => (
-          <button
-            key={`g-${i}`}
-            onClick={() => {
-              setInputTitle(tpl.title);
-              setInputBody(tpl.body);
-            }}
-            className="flex-shrink-0 w-24 h-20 rounded-lg border border-blue-800 bg-[#0a1628] hover:border-blue-500 hover:bg-blue-900/30 transition-all flex flex-col items-center justify-center p-2 text-center"
-          >
-            <span className="text-xl mb-1">📋</span>
-            <span className="text-[10px] text-blue-200 leading-tight line-clamp-2">{tpl.title}</span>
-          </button>
-        ))}
-      </div>
-    </div>
-  );
-
+  // 节日模板快捷入口（编辑页）—— 当前入口已停用（见 renderInput 中被注释的调用）
   const renderPreviewControls = () => (
     <div className="space-y-4">
-      <div className="flex justify-between items-center border-b border-blue-900/50 pb-4">
-        <h3 className="font-bold text-white font-serif-sc">版式微调</h3>
+      <div className="flex justify-between items-center border-b border-[var(--ui-border)] pb-4">
+        <h3 className="font-bold text-[var(--ui-text)] font-serif-sc">版式微调</h3>
         <button
           onClick={onBackToEdit}
-          className="px-3 py-1.5 bg-blue-900/50 hover:bg-blue-800 text-blue-200 text-xs rounded border border-blue-800 transition-colors flex items-center gap-1 min-h-[36px]"
+          className="px-3 py-1.5 bg-[var(--ui-panel)] hover:bg-[var(--ui-panel-hover)] text-[var(--ui-text-soft)] text-xs rounded border border-[var(--ui-border)] transition-colors flex items-center gap-1 min-h-[36px] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#b3261e]"
         >
           <svg className="w-3 h-3" fill="none" viewBox="0 0 24 24" stroke="currentColor">
             <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M11 17l-5-5m0 0l5-5m-5 5h12" />
@@ -245,11 +224,11 @@ export const Controls: React.FC<ControlsProps> = ({
         </button>
       </div>
 
-      {/* Download Action */}
+      {/* Download Action —— 朱红主操作（统一强调色，去原 emerald 多色撞色） */}
       <button
         onClick={onDownload}
         disabled={isDownloading}
-        className="w-full py-3.5 bg-gradient-to-r from-emerald-600 to-emerald-800 hover:from-emerald-500 hover:to-emerald-700 disabled:opacity-60 disabled:cursor-wait text-white font-bold rounded-lg shadow-lg shadow-emerald-900/40 transition-all flex items-center justify-center gap-2 mb-2 min-h-[48px]"
+        className="w-full py-3.5 bg-gradient-to-r from-[#b3261e] to-[#8c1a14] hover:from-[#c92a20] hover:to-[#a01e16] disabled:opacity-60 disabled:cursor-wait text-white font-bold rounded-lg shadow-lg shadow-black/40 transition-all flex items-center justify-center gap-2 mb-2 min-h-[48px] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-offset-2 focus-visible:ring-offset-[var(--ui-bg)] focus-visible:ring-[#b3261e]"
       >
         {isDownloading ? (
           <>
@@ -273,10 +252,8 @@ export const Controls: React.FC<ControlsProps> = ({
             <button
               key={layout.id}
               onClick={() => handleChange('layout', layout.id)}
-              className={`py-2.5 px-3 rounded border text-left transition-all min-h-[52px] ${
-                styleConfig.layout === layout.id
-                  ? 'bg-blue-600 text-white border-blue-400 ring-1 ring-blue-300'
-                  : 'bg-[#0a1628] text-blue-300 border-blue-800 hover:border-blue-600'
+              className={`py-2.5 px-3 rounded border text-left transition-all min-h-[52px] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#b3261e] ${
+                styleConfig.layout === layout.id ? SELECTED : UNSELECTED
               }`}
             >
               <div className="text-sm font-bold">{layout.name}</div>
@@ -296,10 +273,8 @@ export const Controls: React.FC<ControlsProps> = ({
                 handleChange('widthScale', preset.w);
                 handleChange('heightScale', preset.h);
               }}
-              className={`py-2 px-2 rounded border text-xs transition-all min-h-[40px] ${
-                styleConfig.widthScale === preset.w && styleConfig.heightScale === preset.h
-                  ? 'bg-blue-600 text-white border-blue-400'
-                  : 'bg-[#0a1628] text-blue-300 border-blue-800 hover:border-blue-600'
+              className={`py-2 px-2 rounded border text-xs transition-all min-h-[40px] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#b3261e] ${
+                styleConfig.widthScale === preset.w && styleConfig.heightScale === preset.h ? SELECTED : UNSELECTED
               }`}
             >
               {preset.name}
@@ -335,15 +310,15 @@ export const Controls: React.FC<ControlsProps> = ({
             <button
               key={scheme.id}
               onClick={() => handleChange('accentScheme', scheme.id)}
-              className={`flex items-center gap-2 p-2 rounded border text-left transition-all min-h-[44px] ${
-                styleConfig.accentScheme === scheme.id ? 'border-white ring-1 ring-blue-500 bg-white/5' : 'border-white/10 opacity-70 hover:opacity-100'
+              className={`flex items-center gap-2 p-2 rounded border text-left transition-all min-h-[44px] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#b3261e] ${
+                styleConfig.accentScheme === scheme.id ? 'border-[#b3261e] ring-1 ring-[#b3261e] bg-white/5' : 'border-[var(--ui-border)] opacity-70 hover:opacity-100'
               }`}
               title={scheme.hint}
             >
               <span className="w-5 h-5 rounded flex-shrink-0" style={{ background: scheme.accent }} />
               <span className="flex flex-col min-w-0">
-                <span className="text-xs font-bold text-white truncate">{scheme.name}</span>
-                <span className="text-[10px] text-blue-400 truncate">{scheme.hint}</span>
+                <span className="text-xs font-bold text-[var(--ui-text)] truncate">{scheme.name}</span>
+                <span className="text-[10px] text-[var(--ui-text-muted)] truncate">{scheme.hint}</span>
               </span>
             </button>
           ))}
@@ -357,50 +332,58 @@ export const Controls: React.FC<ControlsProps> = ({
             <button
               key={bg.id}
               onClick={() => handleChange('backgroundId', bg.id)}
-              className={`flex items-center gap-2 p-2 rounded border text-left transition-all min-h-[44px] ${
-                styleConfig.backgroundId === bg.id ? 'border-white ring-1 ring-blue-500 bg-white/5' : 'border-white/10 opacity-70 hover:opacity-100'
+              className={`flex items-center gap-2 p-2 rounded border text-left transition-all min-h-[44px] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#b3261e] ${
+                styleConfig.backgroundId === bg.id ? 'border-[#b3261e] ring-1 ring-[#b3261e] bg-white/5' : 'border-[var(--ui-border)] opacity-70 hover:opacity-100'
               }`}
               title={bg.name}
             >
               <span className="w-5 h-5 rounded flex-shrink-0 border border-black/20" style={{ background: bg.paper }} />
-              <span className="text-xs font-bold text-white truncate">{bg.name}</span>
+              <span className="text-xs font-bold text-[var(--ui-text)] truncate">{bg.name}</span>
             </button>
           ))}
         </div>
+        {/* 背景材质强度（角晕/纤维透明度） */}
+        <SliderRow
+          label="背景质感强度"
+          value={styleConfig.bgOpacity ?? 60}
+          min={0}
+          max={100}
+          step={5}
+          unit="%"
+          onChange={(v) => handleChange('bgOpacity', v)}
+        />
       </CollapsibleSection>
 
       {/* 折叠分组：报头信息（页眉） */}
       <CollapsibleSection title="📰 报头信息" defaultOpen={false}>
-        <label className="text-[10px] text-blue-400 mb-1.5 uppercase tracking-wide block">页眉标签（左）</label>
+        <label className="text-[10px] text-[var(--ui-text-muted)] mb-1.5 block">页眉标签（左）</label>
         <input
           type="text"
           value={styleConfig.kicker || ''}
           onChange={(e) => handleChange('kicker', e.target.value)}
           placeholder="如：廉洁提醒"
-          className="w-full px-3 py-2 mb-3 rounded bg-[#0a1628] border border-blue-800 text-sm text-white focus:outline-none focus:border-blue-500"
+          className="w-full px-3 py-2 mb-3 rounded bg-[var(--ui-input)] border border-[var(--ui-border)] text-sm text-[var(--ui-text)] placeholder-[var(--ui-text-muted)] focus:outline-none focus:border-[#b3261e] focus-visible:ring-2 focus-visible:ring-[#b3261e]/40"
         />
-        <label className="text-[10px] text-blue-400 mb-1.5 uppercase tracking-wide block">期号（右）</label>
+        <label className="text-[10px] text-[var(--ui-text-muted)] mb-1.5 block">期号（右）</label>
         <input
           type="text"
           value={styleConfig.issue || ''}
           onChange={(e) => handleChange('issue', e.target.value)}
           placeholder="如：第 001 期"
-          className="w-full px-3 py-2 rounded bg-[#0a1628] border border-blue-800 text-sm text-white focus:outline-none focus:border-blue-500"
+          className="w-full px-3 py-2 rounded bg-[var(--ui-input)] border border-[var(--ui-border)] text-sm text-[var(--ui-text)] placeholder-[var(--ui-text-muted)] focus:outline-none focus:border-[#b3261e] focus-visible:ring-2 focus-visible:ring-[#b3261e]/40"
         />
       </CollapsibleSection>
 
       {/* 折叠分组：字体与字号 */}
       <CollapsibleSection title="🔤 字体与字号" defaultOpen={false}>
-        <label className="text-[10px] text-blue-400 mb-1.5 uppercase tracking-wide block">标题字体</label>
+        <label className="text-[10px] text-[var(--ui-text-muted)] mb-1.5 block">标题字体</label>
         <div className="grid grid-cols-2 gap-2 mb-3">
           {FONT_OPTIONS.map((font) => (
             <button
               key={`title-${font.id}`}
               onClick={() => handleChange('titleFontFamily', font.value)}
-              className={`py-2 px-3 rounded border text-sm transition-all text-left truncate min-h-[40px] ${
-                styleConfig.titleFontFamily === font.value
-                  ? 'bg-blue-600 text-white border-blue-400'
-                  : 'bg-[#0a1628] text-blue-300 border-blue-800 hover:border-blue-600'
+              className={`py-2 px-3 rounded border text-sm transition-all text-left truncate min-h-[40px] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#b3261e] ${
+                styleConfig.titleFontFamily === font.value ? SELECTED : UNSELECTED
               }`}
               style={{ fontFamily: font.value }}
             >
@@ -409,16 +392,14 @@ export const Controls: React.FC<ControlsProps> = ({
           ))}
         </div>
 
-        <label className="text-[10px] text-blue-400 mb-1.5 uppercase tracking-wide block">正文字体</label>
+        <label className="text-[10px] text-[var(--ui-text-muted)] mb-1.5 block">正文字体</label>
         <div className="grid grid-cols-2 gap-2 mb-3">
           {FONT_OPTIONS.map((font) => (
             <button
               key={`body-${font.id}`}
               onClick={() => handleChange('fontFamily', font.value)}
-              className={`py-2 px-3 rounded border text-sm transition-all text-left truncate min-h-[40px] ${
-                styleConfig.fontFamily === font.value
-                  ? 'bg-blue-600 text-white border-blue-400'
-                  : 'bg-[#0a1628] text-blue-300 border-blue-800 hover:border-blue-600'
+              className={`py-2 px-3 rounded border text-sm transition-all text-left truncate min-h-[40px] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#b3261e] ${
+                styleConfig.fontFamily === font.value ? SELECTED : UNSELECTED
               }`}
               style={{ fontFamily: font.value }}
             >
@@ -447,37 +428,50 @@ export const Controls: React.FC<ControlsProps> = ({
         />
       </CollapsibleSection>
 
-      {/* 折叠分组：装饰与印章 */}
-      <CollapsibleSection title="🎊 装饰与印章" defaultOpen={false}>
-        {/* 印章开关 */}
-        <div className="flex items-center justify-between py-2 border border-blue-800/50 rounded bg-blue-900/20 px-3 mb-3">
-          <span className="text-sm text-blue-200">显示印章</span>
-          <button
-            onClick={() => handleChange('showSeal', !styleConfig.showSeal)}
-            className={`w-12 h-6 rounded-full relative transition-colors duration-200 min-h-[40px] ${
-              styleConfig.showSeal ? 'bg-red-600' : 'bg-blue-900'
-            }`}
-          >
-            <div
-              className={`absolute top-1.5 w-4 h-4 bg-white rounded-full transition-all duration-200 shadow-sm ${
-                styleConfig.showSeal ? 'left-7' : 'left-1'
+      {/* 折叠分组：装饰边框（独立分组，8 种样式可选） */}
+      <CollapsibleSection title="🖼️ 装饰边框" defaultOpen={false}>
+        <div className="grid grid-cols-3 gap-1.5 mb-3">
+          {FRAME_STYLES.map((f) => (
+            <button
+              key={f.id}
+              onClick={() => handleChange('frameStyle', f.id)}
+              className={`py-2 px-1 rounded border text-[11px] transition-all min-h-[40px] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#b3261e] ${
+                (styleConfig.frameStyle || 'double') === f.id ? SELECTED : UNSELECTED
               }`}
-            />
-          </button>
+            >
+              {f.name}
+            </button>
+          ))}
         </div>
+      </CollapsibleSection>
+
+      {/* 折叠分组：材质与印章 */}
+      <CollapsibleSection title="🎊 材质与印章" defaultOpen={false}>
+        {/* 印章开关 */}
+        <ToggleRow
+          label="显示印章"
+          checked={styleConfig.showSeal}
+          onChange={(v) => handleChange('showSeal', v)}
+        />
+        {/* 纸张质感开关（典雅升级：宣纸纤维+水墨角晕） */}
+        <ToggleRow
+          label="纸张质感（宣纸纤维 / 水墨角晕）"
+          checked={styleConfig.paperTexture !== false}
+          onChange={(v) => handleChange('paperTexture', v)}
+        />
 
         {/* 印章文字（可编辑，2-6 字） */}
-        <label className="text-[10px] text-blue-400 mb-1.5 uppercase tracking-wide block">印章文字（2-6 字）</label>
+        <label className="text-[10px] text-[var(--ui-text-muted)] mb-1.5 block">印章文字（2-6 字）</label>
         <input
           type="text"
           value={styleConfig.sealText || ''}
           maxLength={6}
           onChange={(e) => handleChange('sealText', e.target.value)}
           placeholder="如：廉洁 / 纪检 / 清风"
-          className="w-full px-3 py-2 mb-3 rounded bg-[#0a1628] border border-blue-800 text-sm text-white focus:outline-none focus:border-blue-500"
+          className="w-full px-3 py-2 mb-3 rounded bg-[var(--ui-input)] border border-[var(--ui-border)] text-sm text-[var(--ui-text)] placeholder-[var(--ui-text-muted)] focus:outline-none focus:border-[#b3261e] focus-visible:ring-2 focus-visible:ring-[#b3261e]/40"
         />
 
-        <label className="text-[10px] text-blue-400 mb-1.5 uppercase tracking-wide block">装饰元素</label>
+        <label className="text-[10px] text-[var(--ui-text-muted)] mb-1.5 block">装饰元素</label>
         <div className="grid grid-cols-3 gap-2">
           {DECORATION_OPTIONS.map((dec) => {
             const active = (styleConfig.decorations || []).includes(dec.id);
@@ -485,8 +479,8 @@ export const Controls: React.FC<ControlsProps> = ({
               <button
                 key={dec.id}
                 onClick={() => toggleDecoration(dec.id)}
-                className={`py-2 px-1 rounded border text-center transition-all min-h-[48px] flex flex-col items-center justify-center ${
-                  active ? 'bg-blue-600 text-white border-blue-400' : 'bg-[#0a1628] text-blue-300 border-blue-800 hover:border-blue-600'
+                className={`py-2 px-1 rounded border text-center transition-all min-h-[48px] flex flex-col items-center justify-center focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#b3261e] ${
+                  active ? SELECTED : UNSELECTED
                 }`}
               >
                 <span className="text-lg leading-none mb-0.5">{dec.icon}</span>
@@ -498,10 +492,10 @@ export const Controls: React.FC<ControlsProps> = ({
       </CollapsibleSection>
 
       {/* 保存 */}
-      <div className="pt-2 border-t border-blue-900/50 space-y-3">
+      <div className="pt-2 border-t border-[var(--ui-border)] space-y-3">
         <button
           onClick={onSave}
-          className="w-full py-2.5 bg-blue-900 text-blue-100 hover:bg-blue-800 rounded-lg text-sm font-medium transition-colors border border-blue-700 min-h-[44px]"
+          className="w-full py-2.5 bg-[var(--ui-panel)] text-[var(--ui-text-soft)] hover:bg-[var(--ui-panel-hover)] hover:text-[var(--ui-text)] rounded-lg text-sm font-medium transition-colors border border-[var(--ui-border)] min-h-[44px] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#b3261e]"
         >
           保存当前更改
         </button>
@@ -512,11 +506,11 @@ export const Controls: React.FC<ControlsProps> = ({
   const renderInput = () => (
     <>
       <div className="flex items-center justify-between mb-4">
-        <h2 className="text-xl font-bold text-white flex items-center gap-2">
-          <div className="p-1 bg-red-600 rounded shadow-lg shadow-red-900/50">
+        <h2 className="text-xl font-bold text-[var(--ui-text)] flex items-center gap-2">
+          <div className="p-1 bg-[#b3261e] rounded shadow-lg shadow-black/40">
             <svg
               xmlns="http://www.w3.org/2000/svg"
-              className="h-5 w-5 text-white"
+              className="h-5 w-5 text-[var(--ui-text)]"
               fill="none"
               viewBox="0 0 24 24"
               stroke="currentColor"
@@ -534,37 +528,34 @@ export const Controls: React.FC<ControlsProps> = ({
         <div className="flex gap-2">
           <button
             onClick={onNew}
-            className="text-xs px-3 py-2 bg-blue-900/50 hover:bg-blue-800 rounded text-blue-200 border border-blue-800 min-h-[40px]"
+            className="text-xs px-3 py-2 bg-[var(--ui-panel)] hover:bg-[var(--ui-panel-hover)] hover:text-[var(--ui-text)] rounded text-[var(--ui-text-soft)] border border-[var(--ui-border)] min-h-[40px] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#b3261e]"
           >
             新建
           </button>
           <button
             onClick={onSave}
-            className="text-xs px-3 py-2 bg-blue-900/50 hover:bg-blue-800 rounded text-blue-200 border border-blue-800 min-h-[40px]"
+            className="text-xs px-3 py-2 bg-[var(--ui-panel)] hover:bg-[var(--ui-panel-hover)] hover:text-[var(--ui-text)] rounded text-[var(--ui-text-soft)] border border-[var(--ui-border)] min-h-[40px] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#b3261e]"
           >
             保存草稿
           </button>
         </div>
       </div>
 
-      {/* 节日推荐横幅 —— 暂停节日系统，隐藏入口（保留代码以后启用） */}
-      {/* {renderHolidayBanner()} */}
-
-      {/* 快速模板入口 —— 暂停节日系统，隐藏入口（保留代码以后启用） */}
-      {/* {renderHolidayTemplates()} */}
+      {/* 节日推荐横幅：节庆时段自动出现，一键套用主题+模板+装饰+底色 */}
+      {renderHolidayBanner()}
 
       <div className="space-y-4 mb-4">
         <div>
-          <label className="block text-xs font-semibold text-blue-300 mb-1 uppercase tracking-wider">标题 (Title)</label>
+          <label className="block text-xs font-semibold text-[var(--ui-text-muted)] mb-1">标题</label>
           <input
             value={inputTitle}
             onChange={(e) => setInputTitle(e.target.value)}
             placeholder="例如：节日纪律提醒"
-            className="w-full bg-[#0a1628] border border-blue-800 rounded-lg p-3 text-white focus:ring-2 focus:ring-red-600 focus:border-transparent focus:outline-none font-serif-sc font-bold text-lg placeholder-blue-700/50 min-h-[48px]"
+            className="w-full bg-[var(--ui-input)] border border-[var(--ui-border)] rounded-lg p-3 text-[var(--ui-text)] focus:ring-2 focus:ring-[#b3261e] focus:border-transparent focus:outline-none font-serif-sc font-bold text-lg placeholder-[var(--ui-text-muted)] min-h-[48px]"
           />
         </div>
         <div>
-          <label className="block text-xs font-semibold text-blue-300 mb-1 uppercase tracking-wider">正文 (Content)</label>
+          <label className="block text-xs font-semibold text-[var(--ui-text-muted)] mb-1">正文</label>
           <SimpleEditor
             value={inputBody}
             onChange={(html) => setInputBody(html)}
@@ -578,10 +569,10 @@ export const Controls: React.FC<ControlsProps> = ({
       <button
         onClick={onGenerate}
         disabled={isGenerating || !inputBody.trim()}
-        className={`w-full py-4 rounded-lg font-bold text-lg transition-all shadow-lg min-h-[56px] ${
+        className={`w-full py-4 rounded-lg font-bold text-lg transition-all shadow-lg min-h-[56px] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-offset-2 focus-visible:ring-offset-[var(--ui-bg)] focus-visible:ring-[#b3261e] ${
           isGenerating || !inputBody.trim()
-            ? 'bg-slate-700 cursor-not-allowed text-slate-400'
-            : 'bg-gradient-to-r from-[#DE2910] to-[#b30000] hover:from-red-600 hover:to-red-800 text-white shadow-red-900/50'
+            ? 'bg-[var(--ui-input)] cursor-not-allowed text-[var(--ui-text-muted)]'
+            : 'bg-gradient-to-r from-[#b3261e] to-[#8c1a14] hover:from-[#c92a20] hover:to-[#a01e16] text-white shadow-black/40'
         }`}
       >
         {isGenerating ? (
@@ -599,19 +590,33 @@ export const Controls: React.FC<ControlsProps> = ({
   return (
     <div className="flex flex-col h-full">
       {/* Mobile/Tab Switcher */}
-      <div className="flex border-b border-blue-900/50 mb-4">
+      <div className="flex border-b border-[var(--ui-border)] mb-4" role="tablist">
         <button
+          role="tab"
+          aria-selected={activeTab === 'editor'}
           onClick={() => setActiveTab('editor')}
-          className={`flex-1 py-3.5 text-sm font-bold border-b-2 transition-colors min-h-[48px] ${
-            activeTab === 'editor' ? 'border-red-600 text-white' : 'border-transparent text-blue-400 hover:text-blue-300'
+          className={`flex-1 py-3.5 text-sm font-bold border-b-2 transition-colors min-h-[48px] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#b3261e] ${
+            activeTab === 'editor' ? 'border-[#b3261e] text-[var(--ui-text)]' : 'border-transparent text-[var(--ui-text-muted)] hover:text-[var(--ui-text-soft)]'
           }`}
         >
           编辑设计
         </button>
         <button
+          role="tab"
+          aria-selected={activeTab === 'templates'}
+          onClick={() => setActiveTab('templates')}
+          className={`flex-1 py-3.5 text-sm font-bold border-b-2 transition-colors min-h-[48px] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#b3261e] ${
+            activeTab === 'templates' ? 'border-[#b3261e] text-[var(--ui-text)]' : 'border-transparent text-[var(--ui-text-muted)] hover:text-[var(--ui-text-soft)]'
+          }`}
+        >
+          模板库
+        </button>
+        <button
+          role="tab"
+          aria-selected={activeTab === 'history'}
           onClick={() => setActiveTab('history')}
-          className={`flex-1 py-3.5 text-sm font-bold border-b-2 transition-colors min-h-[48px] ${
-            activeTab === 'history' ? 'border-red-600 text-white' : 'border-transparent text-blue-400 hover:text-blue-300'
+          className={`flex-1 py-3.5 text-sm font-bold border-b-2 transition-colors min-h-[48px] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#b3261e] ${
+            activeTab === 'history' ? 'border-[#b3261e] text-[var(--ui-text)]' : 'border-transparent text-[var(--ui-text-muted)] hover:text-[var(--ui-text-soft)]'
           }`}
         >
           历史记录
@@ -619,7 +624,16 @@ export const Controls: React.FC<ControlsProps> = ({
       </div>
 
       <div className="flex-1 overflow-y-auto custom-scrollbar pr-1 pb-4">
-        {activeTab === 'history' ? (
+        {activeTab === 'templates' ? (
+          <TemplateLibrary
+            upcomingHoliday={upcomingHoliday}
+            onUseTemplate={(tpl) => {
+              onUseTemplate(tpl);
+              setActiveTab('editor');
+            }}
+            fontFamily={styleConfig.fontFamily}
+          />
+        ) : activeTab === 'history' ? (
           renderHistory()
         ) : step === Step.PREVIEW && content ? (
           renderPreviewControls()
@@ -643,7 +657,7 @@ const SliderRow: React.FC<{
 }> = ({ label, value, min, max, step, unit, onChange }) => (
   <div>
     <div className="flex justify-between items-center mb-1">
-      <span className="text-sm text-blue-200">{label}</span>
+      <span className="text-sm text-[var(--ui-text-soft)]">{label}</span>
       <div className="flex items-center gap-1">
         <input
           type="number"
@@ -654,9 +668,9 @@ const SliderRow: React.FC<{
             const v = Number(e.target.value);
             if (!isNaN(v)) onChange(Math.max(min, Math.min(max, v)));
           }}
-          className="w-16 bg-[#0a1628] border border-blue-800 rounded px-2 py-1 text-xs text-white text-right min-h-[32px]"
+          className="w-16 bg-[var(--ui-input)] border border-[var(--ui-border)] rounded px-2 py-1 text-xs text-[var(--ui-text)] text-right min-h-[32px] focus:outline-none focus:border-[#b3261e]"
         />
-        <span className="text-xs text-blue-400">{unit}</span>
+        <span className="text-xs text-[var(--ui-text-muted)]">{unit}</span>
       </div>
     </div>
     <input
@@ -666,27 +680,28 @@ const SliderRow: React.FC<{
       step={step}
       value={value}
       onChange={(e) => onChange(Number(e.target.value))}
-      className="w-full accent-red-600 h-2 bg-blue-900 rounded-lg appearance-none cursor-pointer"
+      className="w-full accent-[#b3261e] h-2 bg-[var(--ui-border)] rounded-lg appearance-none cursor-pointer"
     />
   </div>
 );
 
-// 纹理按钮
-const TextureButton: React.FC<{
-  tex: { id: string; name: string };
-  active: boolean;
-  onChange: (key: keyof PosterStyle, value: any) => void;
-  onClearImage: () => void;
-}> = ({ tex, active, onChange, onClearImage }) => (
-  <button
-    onClick={() => {
-      onChange('textureStyle', tex.id);
-      onClearImage();
-    }}
-    className={`py-2.5 rounded border text-xs font-medium transition-all min-h-[44px] ${
-      active ? 'bg-blue-600 text-white border-blue-400 ring-1 ring-blue-300' : 'bg-[#0a1628] text-blue-300 border-blue-800 hover:border-blue-600'
-    }`}
-  >
-    {tex.name}
-  </button>
+// 开关行：印章/纸张质感等布尔项复用（触摸友好 + 可访问）
+const ToggleRow: React.FC<{ label: string; checked: boolean; onChange: (v: boolean) => void }> = ({ label, checked, onChange }) => (
+  <div className="flex items-center justify-between py-2 border border-[var(--ui-border)] rounded bg-[var(--ui-panel)] px-3 mb-3">
+    <span className="text-sm text-[var(--ui-text-soft)]">{label}</span>
+    <button
+      onClick={() => onChange(!checked)}
+      role="switch"
+      aria-checked={checked}
+      className={`w-12 h-6 rounded-full relative transition-colors duration-200 min-h-[40px] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#b3261e] ${
+        checked ? 'bg-[#b3261e]' : 'bg-[var(--ui-border)]'
+      }`}
+    >
+      <div
+        className={`absolute top-1.5 w-4 h-4 bg-white rounded-full transition-all duration-200 shadow-sm ${
+          checked ? 'left-7' : 'left-1'
+        }`}
+      />
+    </button>
+  </div>
 );

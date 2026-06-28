@@ -4,38 +4,79 @@
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
     <title>警示海报生成</title>
-    <!-- 防缓存：本次设计改版后避免用户看到旧版 -->
-    <meta http-equiv="Cache-Control" content="no-cache, no-store, must-revalidate" />
-    <meta http-equiv="Pragma" content="no-cache" />
-    <meta http-equiv="Expires" content="0" />
-    <!-- Keep Tailwind CDN for simplicity in this setup -->
+    <meta name="description" content="面向党建、纪检、安全生产、节日廉洁提醒等场景的中文警示海报生成工具。纯前端运行，内容不经服务器，输入标题正文即可生成可下载的竖版海报。" />
+    <!-- 社交分享 -->
+    <meta property="og:type" content="website" />
+    <meta property="og:title" content="警示海报生成器" />
+    <meta property="og:description" content="面向党建、纪检、安全生产、节日廉洁提醒等场景的中文警示海报生成工具。纯前端运行，一键导出 PNG。" />
+    <meta property="og:image" content="https://hsjj.netlify.app/og-image.png" />
+    <meta name="twitter:card" content="summary_large_image" />
+    <meta name="twitter:title" content="警示海报生成器" />
+    <meta name="twitter:description" content="面向党建、纪检、安全生产、节日廉洁提醒等场景的中文警示海报生成工具。" />
+    <!-- 生产缓存交给 Vite 的文件哈希指纹管理（不再全局禁缓存，避免影响静态资源性能） -->
+    <!-- Tailwind via CDN（与现有 stack 保持一致） -->
     <script src="https://cdn.tailwindcss.com"></script>
-    <!-- 中文字体：新增 ZCOOL XiaoWei / ZCOOL QingKe HuangYou（重新设计字体方案需要） -->
-    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;600;800&family=Noto+Serif+SC:wght@400;500;700;900&family=Noto+Sans+SC:wght@300;400;500;700;900&family=ZCOOL+XiaoWei&family=ZCOOL+QingKe+HuangYou&family=Ma+Shan+Zheng&family=Zhi+Mang+Xing&display=swap" rel="stylesheet">
+    <!-- 中文字体：公文标准字体方案。系统优先（ST系列/SimSun），web 兜底（Ma Shan Zheng 行楷、Noto Serif 宋系） -->
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;600;800&family=Noto+Serif+SC:wght@400;500;700;900&family=Ma+Shan+Zheng&display=swap" rel="stylesheet">
     <style>
+      /* ============================================================
+         编辑器外壳主题变量 —— 暗色（默认）/ 亮色。
+         组件用 var(--ui-xxx) 引用，切换只需改 <html data-ui-theme>。
+         暖炭灰（暗）保持原视觉；亮色用温暖象牙白，与海报纸调呼应。
+         ============================================================ */
+      :root,
+      [data-ui-theme="dark"] {
+        --ui-bg: #17130e;          /* 外层底 */
+        --ui-bg-2: #1f1a13;        /* 次级底 */
+        --ui-panel: #241d14;       /* 面板/卡片 */
+        --ui-panel-hover: #2f261a; /* 面板悬停 */
+        --ui-border: #3d3220;      /* 边框 */
+        --ui-input: #2a2218;       /* 输入框底 */
+        --ui-text: #f0ebe0;        /* 主文字 */
+        --ui-text-soft: #c4b79e;   /* 次级文字 */
+        --ui-text-muted: #a89e8c;  /* 弱化文字 */
+        --ui-accent: #b3261e;      /* 强调色（朱红） */
+        --ui-accent-soft: rgba(179,38,30,0.4);
+      }
+      [data-ui-theme="light"] {
+        --ui-bg: #f5f1e8;          /* 象牙白底 */
+        --ui-bg-2: #efe9da;        /* 次级底 */
+        --ui-panel: #ffffff;       /* 面板/卡片 */
+        --ui-panel-hover: #f7f3ea; /* 面板悬停 */
+        --ui-border: #d9cfb8;      /* 边框 */
+        --ui-input: #faf6ec;       /* 输入框底 */
+        --ui-text: #2a2218;        /* 主文字（暖墨黑） */
+        --ui-text-soft: #6b6049;   /* 次级文字 */
+        --ui-text-muted: #8a7f68;  /* 弱化文字 */
+        --ui-accent: #b3261e;      /* 强调色保持朱红 */
+        --ui-accent-soft: rgba(179,38,30,0.18);
+      }
       body {
-        font-family: 'Inter', sans-serif;
+        font-family: 'Noto Sans SC', system-ui, sans-serif;
+        background: var(--ui-bg);
+        color: var(--ui-text);
+        transition: background 0.3s ease, color 0.3s ease;
       }
       .font-serif-sc {
         font-family: 'Noto Serif SC', serif;
       }
-      /* Custom scrollbar for webkit */
+      /* 滚动条跟随主题 */
       ::-webkit-scrollbar {
         width: 8px;
       }
       ::-webkit-scrollbar-track {
-        background: #0f172a; 
+        background: var(--ui-bg);
       }
       ::-webkit-scrollbar-thumb {
-        background: #1e3a8a; 
+        background: var(--ui-border);
         border-radius: 4px;
       }
       ::-webkit-scrollbar-thumb:hover {
-        background: #1d4ed8; 
+        background: var(--ui-accent);
       }
     </style>
 </head>
-  <body class="bg-[#050C1A] text-white min-h-screen">
+  <body class="min-h-screen">
     <div id="root"></div>
     <!-- Point to the local entry file for Vite to bundle -->
     <script type="module" src="/index.tsx"></script>

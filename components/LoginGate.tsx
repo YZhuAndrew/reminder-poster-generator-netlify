@@ -75,19 +75,19 @@ const LoginForm: React.FC<{ onSuccess: () => void }> = ({ onSuccess }) => {
   };
 
   return (
-    <div className="min-h-screen w-full flex items-center justify-center bg-[#050C1A] px-4 relative overflow-hidden">
-      {/* 背景纹理：与主应用一致 */}
+    <div className="min-h-screen w-full flex items-center justify-center bg-[#17130e] px-4 relative overflow-hidden">
+      {/* 背景纹理：与主应用一致的暖灰点阵 */}
       <div
-        className="absolute inset-0 opacity-20 pointer-events-none"
-        style={{ backgroundImage: 'radial-gradient(#1e3a8a 1px, transparent 1px)', backgroundSize: '24px 24px' }}
+        className="absolute inset-0 opacity-[0.07] pointer-events-none"
+        style={{ backgroundImage: 'radial-gradient(rgba(180,150,90,0.5) 1px, transparent 1px)', backgroundSize: '24px 24px' }}
       />
-      {/* 顶部红色装饰条 */}
-      <div className="absolute top-0 inset-x-0 h-1 bg-gradient-to-r from-[#DE2910] to-[#b30000]" />
+      {/* 顶部朱红装饰条 */}
+      <div className="absolute top-0 inset-x-0 h-1 bg-gradient-to-r from-[#b3261e] to-[#8c1a14]" />
 
       <div className="relative w-full max-w-sm">
         {/* 标题区 */}
         <div className="text-center mb-8">
-          <div className="inline-flex items-center justify-center w-14 h-14 bg-red-600 rounded-xl shadow-lg shadow-red-900/50 mb-4">
+          <div className="inline-flex items-center justify-center w-14 h-14 bg-[#b3261e] rounded-xl shadow-lg shadow-black/40 mb-4">
             <svg className="w-7 h-7 text-white" fill="none" viewBox="0 0 24 24" stroke="currentColor">
               <path
                 strokeLinecap="round"
@@ -98,28 +98,28 @@ const LoginForm: React.FC<{ onSuccess: () => void }> = ({ onSuccess }) => {
             </svg>
           </div>
           <h1 className="text-2xl font-bold text-white font-serif-sc tracking-wide">警示海报生成</h1>
-          <p className="text-blue-400/60 text-xs mt-1.5">请登录后使用</p>
+          <p className="text-[#a89e8c] text-xs mt-1.5">请登录后使用</p>
         </div>
 
         {/* 登录卡片 */}
         <form
           onSubmit={handleSubmit}
-          className="bg-[#0a1628]/80 backdrop-blur border border-blue-800/50 rounded-xl p-6 space-y-4 shadow-2xl"
+          className="bg-[#241d14]/90 backdrop-blur border border-[#3d3220] rounded-xl p-6 space-y-4 shadow-2xl"
         >
           <div>
-            <label className="block text-xs font-semibold text-blue-300 mb-1.5 uppercase tracking-wider">用户名</label>
+            <label className="block text-xs font-semibold text-[#c4b79e] mb-1.5">用户名</label>
             <input
               type="text"
               value={username}
               onChange={(e) => setUsername(e.target.value)}
               autoComplete="username"
               placeholder="请输入用户名"
-              className="w-full bg-[#050C1A] border border-blue-800 rounded-lg p-3 text-white focus:ring-2 focus:ring-red-600 focus:border-transparent focus:outline-none placeholder-blue-700/50 min-h-[44px]"
+              className="w-full bg-[#2a2218] border border-[#3d3220] rounded-lg p-3 text-white focus:ring-2 focus:ring-[#b3261e] focus:border-transparent focus:outline-none placeholder-[#6f6657] min-h-[44px]"
             />
           </div>
 
           <div>
-            <label className="block text-xs font-semibold text-blue-300 mb-1.5 uppercase tracking-wider">密码</label>
+            <label className="block text-xs font-semibold text-[#c4b79e] mb-1.5">密码</label>
             <div className="relative">
               <input
                 type={showPassword ? 'text' : 'password'}
@@ -127,13 +127,14 @@ const LoginForm: React.FC<{ onSuccess: () => void }> = ({ onSuccess }) => {
                 onChange={(e) => setPassword(e.target.value)}
                 autoComplete="current-password"
                 placeholder="请输入密码"
-                className="w-full bg-[#050C1A] border border-blue-800 rounded-lg p-3 pr-12 text-white focus:ring-2 focus:ring-red-600 focus:border-transparent focus:outline-none placeholder-blue-700/50 min-h-[44px]"
+                className="w-full bg-[#2a2218] border border-[#3d3220] rounded-lg p-3 pr-12 text-white focus:ring-2 focus:ring-[#b3261e] focus:border-transparent focus:outline-none placeholder-[#6f6657] min-h-[44px]"
               />
               <button
                 type="button"
                 onClick={() => setShowPassword((s) => !s)}
-                className="absolute right-2 top-1/2 -translate-y-1/2 p-2 text-blue-400 hover:text-blue-200"
+                className="absolute right-2 top-1/2 -translate-y-1/2 p-2 text-[#a89e8c] hover:text-[#c4b79e] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#b3261e] rounded"
                 title={showPassword ? '隐藏密码' : '显示密码'}
+                aria-label={showPassword ? '隐藏密码' : '显示密码'}
               >
                 {showPassword ? (
                   <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
@@ -165,7 +166,7 @@ const LoginForm: React.FC<{ onSuccess: () => void }> = ({ onSuccess }) => {
           </div>
 
           {error && (
-            <div className="flex items-center gap-2 text-red-300 text-sm bg-red-900/30 border border-red-800/50 rounded-lg px-3 py-2">
+            <div role="alert" className="flex items-center gap-2 text-[#f0bcb6] text-sm bg-[#5a1a16]/60 border border-[#7a2a22] rounded-lg px-3 py-2">
               <svg className="w-4 h-4 flex-shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                 <path
                   strokeLinecap="round"
@@ -181,7 +182,7 @@ const LoginForm: React.FC<{ onSuccess: () => void }> = ({ onSuccess }) => {
           <button
             type="submit"
             disabled={submitting}
-            className="w-full py-3.5 bg-gradient-to-r from-[#DE2910] to-[#b30000] hover:from-red-600 hover:to-red-800 disabled:opacity-60 text-white font-bold rounded-lg shadow-lg shadow-red-900/40 transition-all min-h-[48px] flex items-center justify-center gap-2"
+            className="w-full py-3.5 bg-gradient-to-r from-[#b3261e] to-[#8c1a14] hover:from-[#c92a20] hover:to-[#a01e16] disabled:opacity-60 text-white font-bold rounded-lg shadow-lg shadow-black/40 transition-all min-h-[48px] flex items-center justify-center gap-2 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-offset-2 focus-visible:ring-offset-[#17130e] focus-visible:ring-[#b3261e]"
           >
             {submitting ? (
               <>
@@ -194,8 +195,8 @@ const LoginForm: React.FC<{ onSuccess: () => void }> = ({ onSuccess }) => {
           </button>
         </form>
 
-        <p className="text-center text-blue-500/40 text-xs mt-6 leading-relaxed">
-          内部工具 · 仅限授权人员使用
+        <p className="text-center text-[#6f6657] text-xs mt-6 leading-relaxed">
+          请输入访问口令
         </p>
       </div>
     </div>
