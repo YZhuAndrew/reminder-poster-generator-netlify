@@ -278,8 +278,8 @@ function App() {
       const reminded = localStorage.getItem('ios_download_reminded');
       if (reminded !== 'yes') {
         const go = window.confirm(
-          '当前使用 iOS 设备，下载的海报会因系统限制自动降级（纸张纤维等细节会简化）。\n\n' +
-          '为获得最佳画质，建议在电脑或安卓手机上下载高清原图。\n\n' +
+          '当前使用 iOS 设备，受系统限制下载的海报会降级：\n（装饰纹样、纸张纤维等细节会被简化）\n\n' +
+          '为获得完整画质的精美海报，建议在电脑或安卓手机上下载。\n\n' +
           '是否仍要在当前设备继续下载？'
         );
         localStorage.setItem('ios_download_reminded', 'yes');
@@ -332,10 +332,15 @@ function App() {
             el.style.margin = '0';
             el.style.boxShadow = 'none';
           }
-          // 仅 iOS：移除会让 html2canvas 崩溃的纤维点阵层，并把所有 mix-blend-mode 改 normal。
-          // 非 iOS 保留完整材质与 blend，享受高质量导出。
+          // 仅 iOS：移除会让 html2canvas 污染 canvas / 崩溃的层，并把所有 mix-blend-mode 改 normal。
+          // 1) 纤维点阵层（3px 重复梯度致栈溢出）
+          // 2) data:image/svg 装饰纹样层（致 canvas tainted，toDataURL 抛 "operation is insecure"）
+          // 3) mix-blend-mode（iOS 渲染不稳定）
+          // 移除后海报内容/标题/正文/边框/印章完整，仅缺装饰纹样与纤维质感。
+          // 非 iOS 保留全部，享受完整材质与装饰导出。
           if (isIOS) {
             clonedDoc.querySelectorAll<HTMLElement>('.poster-grain').forEach((n) => n.remove());
+            clonedDoc.querySelectorAll<HTMLElement>('.poster-decorations').forEach((n) => n.remove());
             clonedDoc.querySelectorAll<HTMLElement>('[style*="mix-blend-mode"]').forEach((n) => {
               n.style.mixBlendMode = 'normal';
             });
@@ -344,15 +349,36 @@ function App() {
       });
 
       const dataUrl = canvas.toDataURL('image/png');
-      if (dataUrl === 'data:,') throw new Error('Canvas data is empty');
+      if (dataUrl === 'data:,' || dataUrl.length < 100) throw new Error('Canvas data is empty');
 
-      const link = document.createElement('a');
-      link.download = `poster-${Date.now()}.png`;
-      link.href = dataUrl;
-      document.body.appendChild(link);
-      link.click();
-      document.body.removeChild(link);
-      showToast('海报已下载');
+      if (isIOS) {
+        // iOS Safari 对 <a download> 支持差，且 canvas 可能被标记 tainted 致 toDataURL 在
+        // 某些场景仍受限。最可靠方案：新标签页直接打开图片，提示用户长按"存储图像"。
+        const w = window.open('');
+        if (w) {
+          w.document.write(
+            `<html><head><meta name="viewport" content="width=device-width, initial-scale=1"><title>长按图片保存</title>` +
+            `<style>body{margin:0;background:#17130e;display:flex;flex-direction:column;align-items:center;` +
+            `justify-content:center;min-height:100vh;padding:16px;}img{max-width:100%;height:auto;border-radius:4px;` +
+            `box-shadow:0 8px 30px rgba(0,0,0,.4);}p{color:#fff;font:14px/1.6 -apple-system,sans-serif;` +
+            `margin:16px 0 0;text-align:center;}</style></head><body>` +
+            `<img src="${dataUrl}" alt="海报"/><p>👆 长按图片，选择"存储图像"保存到相册</p></body></html>`
+          );
+          w.document.close();
+          showToast('已在新页面打开，长按图片可保存');
+        } else {
+          showToast('请允许弹出窗口以查看图片', 'error');
+        }
+      } else {
+        // 桌面/Android：直接 a.download 触发下载
+        const link = document.createElement('a');
+        link.download = `poster-${Date.now()}.png`;
+        link.href = dataUrl;
+        document.body.appendChild(link);
+        link.click();
+        document.body.removeChild(link);
+        showToast('海报已下载');
+      }
     } catch (err: any) {
       console.error('Download failed', err);
       showToast(`下载失败：${err.message || '请稍后重试'}`, 'error');
@@ -369,12 +395,12 @@ function App() {
 
   return (
     <main className="h-screen w-full flex flex-col lg:flex-row bg-[var(--ui-bg)] overflow-hidden">
-      {/* 主题切换按钮（亮/暗），固定右上角 */}
+      {/* 主题切换按钮（亮/暗），固定左下角（放右下/右上会遮挡放大预览的关闭按钮） */}
       <button
         onClick={() => setUiTheme((t) => (t === 'dark' ? 'light' : 'dark'))}
         aria-label={uiTheme === 'dark' ? '切换到亮色' : '切换到暗色'}
         title={uiTheme === 'dark' ? '亮色模式' : '暗色模式'}
-        className="fixed top-4 right-4 z-[90] w-10 h-10 rounded-full flex items-center justify-center bg-[var(--ui-panel)] border border-[var(--ui-border)] hover:border-[var(--ui-accent)] transition-colors shadow-lg"
+        className="fixed bottom-4 left-4 z-[90] w-10 h-10 rounded-full flex items-center justify-center bg-[var(--ui-panel)] border border-[var(--ui-border)] hover:border-[var(--ui-accent)] transition-colors shadow-lg"
       >
         {uiTheme === 'dark' ? (
           // 太阳图标（当前暗色，点击切亮）
